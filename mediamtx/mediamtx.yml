@@ -1,0 +1,18 @@
+logLevel: info
+logDestinations: [stdout]
+
+rtspAddress: :8554
+hlsAddress: :8888
+webrtcAddress: :8889
+apiAddress: :9997
+
+hls: yes
+webrtc: yes
+api: yes
+
+paths:
+  camera_01:
+    source: rtsp://35639463:123@192.168.0.2:554/onvif1
+    sourceOnDemand: yes
+    sourceOnDemandStartTimeout: 15s
+    sourceOnDemandCloseAfter: 60s

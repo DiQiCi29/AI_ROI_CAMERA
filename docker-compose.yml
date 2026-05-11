@@ -1,0 +1,25 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: smart_home_mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: your_password_here
+      MYSQL_DATABASE: smart_home_db
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: smart_home_mqtt
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+
+volumes:
+  mysql_data:

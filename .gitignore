@@ -1,5 +1,20 @@
-venv/
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+agent/*.pt
+# Virtual environment
+aiot_env/
+venv/
+env/
 .env
+# VS Code
+.vscode/
 
+# Temp files
+tempCodeRunnerFile.python
+
+# OS
+.DS_Store
+Thumbs.db

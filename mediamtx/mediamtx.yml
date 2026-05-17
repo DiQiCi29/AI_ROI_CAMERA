@@ -12,7 +12,7 @@ api: yes
 
 paths:
   camera_01:
-    source: rtsp://35639463:123@192.168.0.2:554/onvif1
+    source: rtsp://35639463:123@192.168.0.3:554/onvif1
     sourceOnDemand: yes
     sourceOnDemandStartTimeout: 15s
     sourceOnDemandCloseAfter: 60s

@@ -2,7 +2,7 @@ import os
 import cv2
 import time
 import torch
-from detector import IntrusionDetector
+from app.ai.detector import IntrusionDetector
 
 # ─── Khởi tạo 1 lần duy nhất khi server start ────────────────────────────────
 detector = IntrusionDetector()

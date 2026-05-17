@@ -10,12 +10,12 @@ class ZoneType(str, enum.Enum):
 class Zone(Base):
     __tablename__ = "zones"
 
-    id          = Column(Integer, primary_key=True, index=True)
-    camera_id   = Column(Integer, ForeignKey("cameras.id", ondelete="CASCADE"), nullable=False)
-    name        = Column(String(100), nullable=False)     # VD: "Vùng cấm cửa chính"
-    zone_type   = Column(Enum(ZoneType), default=ZoneType.polygon)
-    coordinates = Column(JSON, nullable=False)
-    # VD polygon:   [{"x": 10, "y": 20}, {"x": 50, "y": 20}, ...]
-    # VD rectangle: {"x": 10, "y": 20, "width": 100, "height": 80}
-    is_active   = Column(Boolean, default=True)
-    created_at  = Column(DateTime(timezone=True), server_default=func.now())
+    id                    = Column(Integer, primary_key=True, index=True)
+    camera_id             = Column(String(50), nullable=False)
+    name                  = Column(String(100), nullable=False)
+    zone_type             = Column(Enum(ZoneType), default=ZoneType.polygon)
+    coordinates           = Column(JSON, nullable=False)
+    is_active             = Column(Boolean, default=True)
+    alert_cooldown_seconds = Column(Integer, default=30)   # ← thêm dòng này
+    created_at            = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at            = Column(DateTime(timezone=True), onupdate=func.now())

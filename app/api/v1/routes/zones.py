@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 from typing import Optional
 from app.core.database import get_db
@@ -6,7 +6,6 @@ from app.core.dependencies import get_current_user
 from app.models.zone import Zone
 from app.models.user import User
 from app.schemas.zone import ZoneCreate, ZoneUpdate
-import json
 
 router = APIRouter(prefix="/zones", tags=["Zone Management"])
 
@@ -23,8 +22,26 @@ def zone_to_dict(z: Zone) -> dict:
         "updated_at": z.updated_at,
     }
 
+def push_roi_to_detector(request: Request, db: Session):
+    """Lấy tất cả zone active và cập nhật ROI đầu tiên lên detector"""
+    active_zone = db.query(Zone).filter(Zone.is_active == True).first()
+    if not active_zone:
+        return
+
+    # Chuyển tọa độ % → pixel (1280x720)
+    coords_pixel = [
+        (c["x"] / 100 * 1280, c["y"] / 100 * 720)
+        for c in active_zone.coordinates
+    ]
+
+    detector = request.app.state.detector
+    detector.update_roi(coords_pixel)
+    print(f"[ROI] Updated from zone '{active_zone.name}': {coords_pixel}")
+
+
 @router.post("", status_code=201)
-def create_zone(body: ZoneCreate, db: Session = Depends(get_db),
+def create_zone(body: ZoneCreate, request: Request,
+                db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)):
     existing = db.query(Zone).filter(Zone.name == body.name).first()
     if existing:
@@ -42,21 +59,23 @@ def create_zone(body: ZoneCreate, db: Session = Depends(get_db),
     db.add(zone)
     db.commit()
     db.refresh(zone)
+
+    # ── Tự động cập nhật ROI lên AI detector ──
+    if zone.is_active:
+        push_roi_to_detector(request, db)
+
     return {"success": True, "data": zone_to_dict(zone)}
 
+
 @router.get("")
-def list_zones(
-    camera_id: Optional[str] = None,
-    is_active: Optional[bool] = None,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
+def list_zones(camera_id: Optional[str] = None, is_active: Optional[bool] = None,
+               db: Session = Depends(get_db),
+               current_user: User = Depends(get_current_user)):
     q = db.query(Zone)
-    if camera_id:
-        q = q.filter(Zone.camera_id == camera_id)
-    if is_active is not None:
-        q = q.filter(Zone.is_active == is_active)
+    if camera_id: q = q.filter(Zone.camera_id == camera_id)
+    if is_active is not None: q = q.filter(Zone.is_active == is_active)
     return {"success": True, "data": [zone_to_dict(z) for z in q.all()]}
+
 
 @router.get("/{zone_id}")
 def get_zone(zone_id: int, db: Session = Depends(get_db),
@@ -68,36 +87,65 @@ def get_zone(zone_id: int, db: Session = Depends(get_db),
         })
     return {"success": True, "data": zone_to_dict(zone)}
 
+
 @router.put("/{zone_id}")
-def update_zone(zone_id: int, body: ZoneUpdate, db: Session = Depends(get_db),
+def update_zone(zone_id: int, body: ZoneUpdate, request: Request,
+                db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)):
     zone = db.query(Zone).filter(Zone.id == zone_id).first()
     if not zone:
-        raise HTTPException(status_code=404, detail={"code": "ZONE_NOT_FOUND", "message": "Not found"})
+        raise HTTPException(status_code=404, detail={
+            "code": "ZONE_NOT_FOUND", "message": "Not found"
+        })
     if body.name is not None: zone.name = body.name
-    if body.coordinates is not None: zone.coordinates = [c.model_dump() for c in body.coordinates]
+    if body.coordinates is not None:
+        zone.coordinates = [c.model_dump() for c in body.coordinates]
     if body.is_active is not None: zone.is_active = body.is_active
-    if body.alert_cooldown_seconds is not None: zone.alert_cooldown_seconds = body.alert_cooldown_seconds
+    if body.alert_cooldown_seconds is not None:
+        zone.alert_cooldown_seconds = body.alert_cooldown_seconds
     db.commit()
     db.refresh(zone)
+
+    # ── Tự động cập nhật ROI lên AI detector ──
+    push_roi_to_detector(request, db)
+
     return {"success": True, "data": zone_to_dict(zone)}
 
+
 @router.delete("/{zone_id}")
-def delete_zone(zone_id: int, db: Session = Depends(get_db),
+def delete_zone(zone_id: int, request: Request,
+                db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)):
     zone = db.query(Zone).filter(Zone.id == zone_id).first()
     if not zone:
-        raise HTTPException(status_code=404, detail={"code": "ZONE_NOT_FOUND", "message": "Not found"})
+        raise HTTPException(status_code=404, detail={
+            "code": "ZONE_NOT_FOUND", "message": "Not found"
+        })
     db.delete(zone)
     db.commit()
+
+    # Reset về ROI mặc định nếu xóa hết zone
+    remaining = db.query(Zone).filter(Zone.is_active == True).count()
+    if remaining == 0:
+        request.app.state.detector.update_roi([
+            (0, 0), (1280, 0), (1280, 720), (0, 720)
+        ])
+
     return {"success": True, "message": "Zone deleted successfully"}
 
+
 @router.patch("/{zone_id}/toggle")
-def toggle_zone(zone_id: int, db: Session = Depends(get_db),
+def toggle_zone(zone_id: int, request: Request,
+                db: Session = Depends(get_db),
                 current_user: User = Depends(get_current_user)):
     zone = db.query(Zone).filter(Zone.id == zone_id).first()
     if not zone:
-        raise HTTPException(status_code=404, detail={"code": "ZONE_NOT_FOUND", "message": "Not found"})
+        raise HTTPException(status_code=404, detail={
+            "code": "ZONE_NOT_FOUND", "message": "Not found"
+        })
     zone.is_active = not zone.is_active
     db.commit()
+
+    push_roi_to_detector(request, db)
+
     return {"success": True, "data": {"zone_id": str(zone.id), "is_active": zone.is_active}}

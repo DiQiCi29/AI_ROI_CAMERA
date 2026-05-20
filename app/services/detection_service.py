@@ -3,7 +3,9 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from app.models.alert import Alert
 from app.models.zone import Zone
+from app.models.device import Device, DeviceType
 from app.api.v1.routes.websocket import broadcast_event
+from app.services.mqtt_service import MQTTService
 
 
 async def on_intrusion_detected(alert: Alert, db: Session):
@@ -39,6 +41,39 @@ async def on_intrusion_detected(alert: Alert, db: Session):
             "video_url": f"/api/v1/media/alerts/{alert.id}/video" if alert.video_clip_path else None
         })
         print(f"[WebSocket] Broadcast intrusion_detected for alert {alert.id}")
+
+        # ── Auto-trigger hardware devices on intrusion ─────────────────────
+        try:
+            # 1. Bật còi báo động (siren)
+            siren = db.query(Device).filter(
+                Device.device_type == DeviceType.siren,
+                Device.is_online == True
+            ).first()
+            if siren:
+                MQTTService.trigger_siren(siren.name, duration=30)
+                print(f"[Auto-Action] 🔔 Siren '{siren.name}' triggered for 30s")
+
+            # 2. Bật đèn cảnh báo (light) - tất cả đèn online
+            lights = db.query(Device).filter(
+                Device.device_type == DeviceType.light,
+                Device.is_online == True
+            ).all()
+            for light in lights:
+                MQTTService.turn_on_light(light.name)
+                print(f"[Auto-Action] 💡 Light '{light.name}' turned on")
+
+            # 3. Bật relay nếu có
+            relays = db.query(Device).filter(
+                Device.device_type == DeviceType.relay,
+                Device.is_online == True
+            ).all()
+            for relay in relays:
+                MQTTService.send_command(relay.name, "on")
+                print(f"[Auto-Action] 🔄 Relay '{relay.name}' triggered")
+
+        except Exception as hw_err:
+            print(f"[Auto-Action] ❌ Failed to trigger hardware: {str(hw_err)}")
+
     except Exception as e:
         print(f"[WebSocket Error] Failed to broadcast intrusion_detected: {str(e)}")
 

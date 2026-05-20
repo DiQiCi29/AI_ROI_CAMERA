@@ -19,7 +19,7 @@ def zone_to_dict(z: Zone) -> dict:
         "is_active": z.is_active,
         "alert_cooldown_seconds": z.alert_cooldown_seconds or 30,
         "created_at": z.created_at,
-        "updated_at": z.updated_at,
+        # "updated_at": z.updated_at,
     }
 
 def push_roi_to_detector(request: Request, db: Session):
@@ -68,7 +68,7 @@ def create_zone(body: ZoneCreate, request: Request,
 
 
 @router.get("")
-def list_zones(camera_id: Optional[str] = None, is_active: Optional[bool] = None,
+def list_zones(camera_id: Optional[int] = None, is_active: Optional[bool] = None,
                db: Session = Depends(get_db),
                current_user: User = Depends(get_current_user)):
     q = db.query(Zone)

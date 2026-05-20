@@ -6,6 +6,10 @@ from app.api.v1.routes import health, stream, auth, zones, alerts, logs, media, 
 from app.ai.detector import IntrusionDetector
 import app.models
 
+# Import exception handlers và FCM service
+from app.core.exceptions import register_exception_handlers
+from app.services.fcm_service import FCMService
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
@@ -23,7 +27,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Khởi tạo AI detector 1 lần duy nhất ──────────────────
+# ── Khởi tạo AI detector và các service khác ──────────────────
 @app.on_event("startup")
 async def startup_event():
     app.state.detector = IntrusionDetector(
@@ -35,6 +39,14 @@ async def startup_event():
         (0, 0), (1280, 0), (1280, 720), (0, 720)
     ])
     print("[Server] AI Detector ready!")
+    
+    # Khởi tạo FCM service
+    FCMService.initialize()
+    print("Application startup complete")
+
+
+# ── Đăng ký Exception Handlers ────────────────────────────────
+register_exception_handlers(app)
 
 # ── Routes ────────────────────────────────────────────────
 prefix = "/api/v1"

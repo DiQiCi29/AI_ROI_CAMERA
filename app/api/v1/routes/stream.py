@@ -2,23 +2,40 @@ import httpx
 import subprocess
 import numpy as np
 import cv2
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Query
 from fastapi.responses import StreamingResponse, Response
+from sqlalchemy.orm import Session
 from app.core.dependencies import get_current_user
+from app.core.config import settings
+from app.core.database import get_db
 from app.models.user import User
+from app.models.camera import Camera
 
 router = APIRouter(prefix="/stream", tags=["Camera Stream"])
 
-MEDIAMTX_HOST = "localhost"
-RTSP_URL = "rtsp://35639463:123@192.168.0.3:554/onvif1"
+
+def get_camera_rtsp_url(camera_id: int, db: Session) -> str:
+    """Fetch RTSP URL from database for the given camera"""
+    camera = db.query(Camera).filter(Camera.id == camera_id).first()
+    if not camera:
+        raise HTTPException(status_code=404, detail={
+            "code": "CAMERA_NOT_FOUND",
+            "message": f"Camera with ID {camera_id} not found"
+        })
+    if not camera.is_active:
+        raise HTTPException(status_code=503, detail={
+            "code": "CAMERA_OFFLINE",
+            "message": f"Camera {camera.name} is not active"
+        })
+    return camera.rtsp_url
 
 
-def open_ffmpeg_pipe(width=640, height=360, fps=10):
+def open_ffmpeg_pipe(rtsp_url: str, width=640, height=360, fps=10):
     """Mở FFmpeg subprocess đọc RTSP bằng UDP"""
     cmd = [
         "ffmpeg",
         "-rtsp_transport", "udp",
-        "-i", RTSP_URL,
+        "-i", rtsp_url,
         "-vf", f"scale={width}:{height}",
         "-f", "rawvideo",
         "-pix_fmt", "bgr24",
@@ -34,9 +51,9 @@ def open_ffmpeg_pipe(width=640, height=360, fps=10):
     )
 
 
-def generate_plain_frames():
+def generate_plain_frames(rtsp_url: str):
     """Stream thuần — không có AI"""
-    proc = open_ffmpeg_pipe()
+    proc = open_ffmpeg_pipe(rtsp_url)
     frame_size = 640 * 360 * 3
     try:
         while True:
@@ -55,9 +72,9 @@ def generate_plain_frames():
         proc.kill()
 
 
-def generate_ai_frames(detector):
+def generate_ai_frames(detector, rtsp_url: str):
     """Stream có AI — vẽ ROI + bounding box người xâm nhập"""
-    proc = open_ffmpeg_pipe(width=1280, height=720, fps=10)
+    proc = open_ffmpeg_pipe(rtsp_url, width=1280, height=720, fps=10)
     frame_size = 1280 * 720 * 3
     try:
         while True:
@@ -95,33 +112,42 @@ def generate_ai_frames(detector):
 # ── Endpoints ─────────────────────────────────────────────────
 
 @router.get("/video")
-def stream_video(current_user: User = Depends(get_current_user)):
+def stream_video(camera_id: int = Query(1, ge=1, description="Camera ID"),
+                current_user: User = Depends(get_current_user),
+                db: Session = Depends(get_db)):
     """Stream video thường (không AI)"""
+    rtsp_url = get_camera_rtsp_url(camera_id, db)
     return StreamingResponse(
-        generate_plain_frames(),
+        generate_plain_frames(rtsp_url),
         media_type="multipart/x-mixed-replace; boundary=frame",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"}
     )
 
 
 @router.get("/video/ai")
-def stream_video_ai(request: Request,
-                    current_user: User = Depends(get_current_user)):
+def stream_video_ai(camera_id: int = Query(1, ge=1, description="Camera ID"),
+                    request: Request = None,
+                    current_user: User = Depends(get_current_user),
+                    db: Session = Depends(get_db)):
     """Stream video có AI — vẽ ROI và bounding box người xâm nhập"""
+    rtsp_url = get_camera_rtsp_url(camera_id, db)
     detector = request.app.state.detector
     return StreamingResponse(
-        generate_ai_frames(detector),
+        generate_ai_frames(detector, rtsp_url),
         media_type="multipart/x-mixed-replace; boundary=frame",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"}
     )
 
 
 @router.get("/snapshot")
-def get_snapshot(current_user: User = Depends(get_current_user)):
+def get_snapshot(camera_id: int = Query(1, ge=1, description="Camera ID"),
+                current_user: User = Depends(get_current_user),
+                db: Session = Depends(get_db)):
     """Chụp 1 ảnh tĩnh từ camera"""
+    rtsp_url = get_camera_rtsp_url(camera_id, db)
     cmd = [
         "ffmpeg", "-rtsp_transport", "udp",
-        "-i", RTSP_URL,
+        "-i", rtsp_url,
         "-frames:v", "1",
         "-f", "image2", "-vcodec", "mjpeg", "pipe:1"
     ]
@@ -136,17 +162,32 @@ def get_snapshot(current_user: User = Depends(get_current_user)):
 
 
 @router.get("/status")
-async def stream_status(current_user: User = Depends(get_current_user)):
+async def stream_status(camera_id: int = Query(1, ge=1, description="Camera ID"),
+                       current_user: User = Depends(get_current_user),
+                       db: Session = Depends(get_db)):
+    """Check camera and MediaMTX status"""
+    camera = db.query(Camera).filter(Camera.id == camera_id).first()
+    if not camera:
+        raise HTTPException(status_code=404, detail={
+            "code": "CAMERA_NOT_FOUND",
+            "message": f"Camera with ID {camera_id} not found"
+        })
+    
     try:
         async with httpx.AsyncClient() as client:
             r = await client.get(
-                f"http://{MEDIAMTX_HOST}:9997/v3/paths/list", timeout=3)
+                f"http://{settings.MEDIAMTX_HOST}:{settings.MEDIAMTX_PORT}/v3/paths/list", 
+                timeout=3)
             paths = r.json().get("items", [])
-            cam = next((p for p in paths if p["name"] == "camera_01"), None)
+            cam = next((p for p in paths if p["name"] == f"camera_{camera_id}"), None)
             status = "online" if cam and cam.get("ready") else "offline"
     except Exception:
         status = "offline"
+    
     return {"success": True, "data": {
-        "camera_id": "cam_01", "status": status,
-        "resolution": {"width": 1280, "height": 720}, "fps": 15,
+        "camera_id": camera_id, 
+        "camera_name": camera.name,
+        "status": status,
+        "resolution": camera.resolution or "1280x720", 
+        "fps": 15,
     }}

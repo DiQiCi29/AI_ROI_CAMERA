@@ -48,11 +48,26 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
 
 # Hàm dùng để broadcast từ các service khác (AI webhook, MQTT...)
 async def broadcast_event(event: str, data: dict):
-    dead = []
+    """
+    Gửi event tới tất cả clients đang kết nối.
+    Gọi từ detection_service hoặc các service khác.
+    """
+    dead_clients = []
+    
     for client in connected_clients:
         try:
-            await client.send_json({"event": event, "data": data})
-        except Exception:
-            dead.append(client)
-    for d in dead:
-        connected_clients.remove(d)
+            await client.send_json({
+                "event": event,
+                "data": data,
+                "sent_at": datetime.utcnow().isoformat()
+            })
+        except Exception as e:
+            print(f"[WebSocket] Error sending to client: {str(e)}")
+            dead_clients.append(client)
+    
+    # Xóa clients đã disconnect
+    for client in dead_clients:
+        if client in connected_clients:
+            connected_clients.remove(client)
+    
+    print(f"[WebSocket] Broadcast '{event}' to {len(connected_clients)} clients")

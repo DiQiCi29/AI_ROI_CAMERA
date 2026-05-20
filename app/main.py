@@ -10,6 +10,8 @@ import app.models
 from app.core.exceptions import register_exception_handlers
 from app.services.fcm_service import FCMService
 
+# ── Alembic quản lý migration (chạy "alembic upgrade head" để cập nhật) ──
+# create_all() vẫn giữ làm fallback cho lần chạy đầu tiên
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(

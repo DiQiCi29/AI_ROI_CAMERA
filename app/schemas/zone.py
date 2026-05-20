@@ -8,7 +8,7 @@ class Coordinate(BaseModel):
 
 class ZoneCreate(BaseModel):
     name: str
-    camera_id: str
+    camera_id: int
     zone_type: str = "polygon"
     coordinates: List[Coordinate]
     is_active: bool = True
@@ -30,13 +30,13 @@ class ZoneUpdate(BaseModel):
 class ZoneResponse(BaseModel):
     zone_id: str
     name: str
-    camera_id: str
+    camera_id: int
     zone_type: str
     coordinates: list
     is_active: bool
     alert_cooldown_seconds: int
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    # updated_at: Optional[datetime] = None  # Removed: column deleted from database
 
     class Config:
         from_attributes = True

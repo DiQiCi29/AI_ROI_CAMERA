@@ -111,7 +111,7 @@ class ZoneService:
         if alert_cooldown_seconds is not None:
             zone.alert_cooldown_seconds = alert_cooldown_seconds
         
-        zone.updated_at = datetime.utcnow()
+        # zone.updated_at = datetime.utcnow()  # Removed: column deleted from database
         db.commit()
         db.refresh(zone)
         return zone
@@ -132,7 +132,7 @@ class ZoneService:
         zone = db.query(Zone).filter(Zone.id == zone_id).first()
         if zone:
             zone.is_active = not zone.is_active
-            zone.updated_at = datetime.utcnow()
+            # zone.updated_at = datetime.utcnow()  # Removed: column deleted from database
             db.commit()
             return True
         return False

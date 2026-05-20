@@ -6,8 +6,8 @@ services:
     ports:
       - "3306:3306"
     environment:
-      MYSQL_ROOT_PASSWORD: your_password_here
-      MYSQL_DATABASE: smart_home_db
+      MYSQL_ROOT_PASSWORD: 258463
+      MYSQL_DATABASE: AI_ROI_CAMERA
     volumes:
       - mysql_data:/var/lib/mysql
 

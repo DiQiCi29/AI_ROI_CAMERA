@@ -2,9 +2,14 @@ import os
 import threading
 import torch
 import numpy as np
+import json
+import logging
 from datetime import datetime
+from typing import Optional
 from ultralytics import YOLO
 from shapely.geometry import Point, Polygon
+
+logger = logging.getLogger(__name__)
 
 # Đường dẫn mặc định: cùng thư mục với file detector.py
 DEFAULT_MODEL_PATH = os.path.join(os.path.dirname(__file__), "yolov8s.pt")
@@ -13,10 +18,11 @@ DEFAULT_MODEL_PATH = os.path.join(os.path.dirname(__file__), "yolov8s.pt")
 class IntrusionDetector:
     """
     Module AI phát hiện người xâm nhập vào vùng cấm (ROI).
+    Hỗ trợ MQTT publish alerts tới Backend.
 
     Cách dùng:
         # Khởi tạo 1 lần duy nhất khi server start
-        detector = IntrusionDetector()
+        detector = IntrusionDetector(mqtt_client=mqtt_client, camera_id=1)
 
         # Cập nhật ROI từ App bất cứ lúc nào (thread-safe)
         detector.update_roi([(x1,y1), (x2,y2), (x3,y3), ...])
@@ -30,7 +36,13 @@ class IntrusionDetector:
         # }
     """
 
-    def __init__(self, model_path: str = DEFAULT_MODEL_PATH, confidence: float = 0.5):
+    def __init__(
+        self,
+        model_path: str = DEFAULT_MODEL_PATH,
+        confidence: float = 0.5,
+        mqtt_client: Optional[object] = None,
+        camera_id: int = 1
+    ):
         """
         Khởi tạo model - chỉ gọi 1 lần duy nhất khi server start.
 
@@ -38,15 +50,27 @@ class IntrusionDetector:
             model_path: Đường dẫn tới file weights YOLO (.pt)
                         Mặc định: cùng thư mục với detector.py
             confidence: Ngưỡng confidence để nhận diện người (0.0 - 1.0)
+            mqtt_client: MQTT client instance (Optional)
+            camera_id: ID của camera (dùng cho MQTT topic)
         """
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = YOLO(model_path).to(self.device)
         self.confidence = confidence
         self.roi_polygon = None
         self._lock = threading.Lock()  # Thread-safe khi update ROI
+        
+        # MQTT support
+        self.mqtt_client = mqtt_client
+        self.camera_id = camera_id
+        self.last_alert_time = None
+        self.alert_cooldown = 2  # Chỉ publish alert mỗi 2 giây
+        
         print(f"[Detector] Running on : {self.device}")
         print(f"[Detector] Model path : {model_path}")
         print(f"[Detector] Confidence : {confidence}")
+        print(f"[Detector] Camera ID  : {camera_id}")
+        if self.mqtt_client:
+            print(f"[Detector] MQTT       : Enabled")
 
     def update_roi(self, roi_points: list) -> bool:
         """
@@ -129,11 +153,55 @@ class IntrusionDetector:
                         "confidence": round(conf, 2)
                     })
 
-        return {
+        output = {
             "alert"    : len(intruders) > 0,
             "intruders": intruders,
             "timestamp": datetime.now().isoformat()
         }
+        
+        # Publish alert via MQTT nếu có intrusion detected
+        if output["alert"] and self.mqtt_client:
+            self._publish_alert_mqtt(output)
+        
+        return output
+    
+    def _publish_alert_mqtt(self, output: dict):
+        """
+        Publish intrusion alert tới MQTT broker
+        Topic: alerts/camera_{id}/intrusion
+        
+        Args:
+            output: Dict output từ process_frame()
+        """
+        try:
+            import time
+            now = time.time()
+            
+            # Cooldown để tránh spam (chỉ publish mỗi 2 giây)
+            if self.last_alert_time and (now - self.last_alert_time) < self.alert_cooldown:
+                return
+            
+            self.last_alert_time = now
+            
+            # Prepare MQTT payload
+            payload = {
+                "camera_id": self.camera_id,
+                "detected_at": output["timestamp"],
+                "intruder_count": len(output["intruders"]),
+                "intruders": output["intruders"]
+            }
+            
+            # Publish to MQTT
+            topic = f"alerts/camera_{self.camera_id}/intrusion"
+            success = self.mqtt_client.publish(topic, payload, qos=1)
+            
+            if success:
+                print(f"[Detector] 📤 MQTT Alert published: {topic} (count: {len(output['intruders'])})")
+            else:
+                print(f"[Detector] ⚠️  MQTT publish failed for {topic}")
+                
+        except Exception as e:
+            print(f"[Detector] ✗ Error publishing MQTT alert: {str(e)}")
 
     def draw_frame(self, frame: np.ndarray, output: dict) -> np.ndarray:
         """

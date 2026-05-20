@@ -1,18 +1,26 @@
 """
-Device Management API
-======================
-API để quản lý và điều khiển các thiết bị IoT (đèn, còi, relay, cảm biến)
-kết nối qua MQTT.
+Device Management & Control API
+===============================
+
+API để quản lý và điều khiển các thiết bị IoT (đèn, còi, relay, cảm biến) kết nối qua MQTT.
+
+Tính năng:
+  - CRUD operations: Create, Read, Update, Delete devices (admin only)
+  - Device control: Send commands (on/off/toggle), trigger alarms
+  - Status management: Sync status, query device state
+  - Statistics: Device stats by type, location, online status
 
 Các thiết bị giao tiếp với server qua MQTT:
   - Server ──topic: devices/{name}/command──► ESP32 (gửi lệnh)
   - ESP32  ──topic: devices/{name}/status──► Server (gửi trạng thái)
 """
 
+import json
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import Optional
 from datetime import datetime
+
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, require_admin
 from app.models.device import Device, DeviceType
@@ -266,6 +274,179 @@ def send_command(
     }
 
 
+@router.post("/{device_id}/control")
+def control_device(
+    device_id: int,
+    command: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Gửi control command tới device thông qua MQTT (generic control endpoint).
+    
+    Ví dụ payload:
+    {
+        "power": "on",
+        "brightness": 75,
+        "color": "red"
+    }
+    
+    Flow:
+    1. Find device by ID
+    2. Publish command to device.mqtt_topic via MQTT
+    3. Return success/fail
+    """
+    device = get_device_or_404(device_id, db)
+    
+    if not MQTTService.is_connected():
+        raise HTTPException(
+            status_code=503,
+            detail="MQTT broker not connected"
+        )
+    
+    try:
+        # Prepare control message
+        control_msg = {
+            **command,
+            "timestamp": datetime.now().isoformat(),
+            "command_id": f"{device_id}_{int(datetime.now().timestamp() * 1000)}"
+        }
+        
+        # Publish to device MQTT topic
+        success = MQTTService.publish(
+            topic=device.mqtt_topic,
+            payload=json.dumps(control_msg),
+            qos=1
+        )
+        
+        if success:
+            return {
+                "success": True,
+                "data": {
+                    "device_id": device_id,
+                    "device_name": device.name,
+                    "command": command,
+                    "message": f"Command sent to {device.name}",
+                    "timestamp": datetime.now().isoformat()
+                }
+            }
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to publish control command"
+            )
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@router.post("/{device_id}/toggle")
+def toggle_device(
+    device_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Toggle device on/off (Relay, Light, Siren, etc.)
+    """
+    device = get_device_or_404(device_id, db)
+    
+    # Get current state
+    current_state = device.state.get("power", "off") if device.state else "off"
+    new_state = "off" if current_state == "on" else "on"
+    
+    if not MQTTService.is_connected():
+        raise HTTPException(status_code=503, detail="MQTT broker not connected")
+    
+    try:
+        control_msg = {
+            "power": new_state,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        success = MQTTService.publish(
+            topic=device.mqtt_topic,
+            payload=json.dumps(control_msg),
+            qos=1
+        )
+        
+        if success:
+            # Update database state
+            device.state = {**(device.state or {}), "power": new_state}
+            db.commit()
+            
+            return {
+                "success": True,
+                "data": {
+                    "device_id": device_id,
+                    "device_name": device.name,
+                    "previous_state": current_state,
+                    "new_state": new_state,
+                    "timestamp": datetime.now().isoformat()
+                }
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to toggle device")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
+@router.post("/{device_id}/trigger-alarm")
+def trigger_alarm(
+    device_id: int,
+    duration_seconds: int = Query(default=60, ge=1, le=3600),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Trigger siren/alarm device.
+    
+    Args:
+        device_id: Device ID
+        duration_seconds: Bao lâu siren reo (1-3600 seconds)
+    """
+    device = get_device_or_404(device_id, db)
+    
+    device_type_value = device.device_type.value if hasattr(device.device_type, 'value') else str(device.device_type)
+    if device_type_value != "siren":
+        raise HTTPException(status_code=400, detail="Device is not a siren")
+    
+    if not MQTTService.is_connected():
+        raise HTTPException(status_code=503, detail="MQTT broker not connected")
+    
+    try:
+        alarm_cmd = {
+            "action": "alarm",
+            "duration": duration_seconds,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        success = MQTTService.publish(
+            topic=device.mqtt_topic,
+            payload=json.dumps(alarm_cmd),
+            qos=1
+        )
+        
+        if success:
+            return {
+                "success": True,
+                "data": {
+                    "device_id": device_id,
+                    "device_name": device.name,
+                    "action": "alarm",
+                    "duration": duration_seconds,
+                    "message": f"Alarm triggered on {device.name} for {duration_seconds}s",
+                    "timestamp": datetime.now().isoformat()
+                }
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to trigger alarm")
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
+
+
 @router.post("/{device_id}/sync")
 def sync_device_status(
     device_id: int,
@@ -286,6 +467,31 @@ def sync_device_status(
         })
     
     return {"success": True, "message": f"Status request sent to '{device.name}'"}
+
+
+@router.get("/{device_id}/status")
+def get_device_status(
+    device_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Lấy status hiện tại của device (online/offline, state, last_seen)
+    """
+    device = get_device_or_404(device_id, db)
+    
+    return {
+        "success": True,
+        "data": {
+            "device_id": device.id,
+            "device_name": device.name,
+            "online": device.is_online,
+            "state": device.state,
+            "last_seen": device.last_seen_at.isoformat() if device.last_seen_at else None,
+            "location": device.location,
+            "mqtt_topic": device.mqtt_topic
+        }
+    }
 
 
 @router.get("/stats/summary")

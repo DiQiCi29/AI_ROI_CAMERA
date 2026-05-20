@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     DB_HOST: str = "localhost"
     DB_PORT: int = 3306
     DB_USER: str = "root"
-    DB_PASSWORD: str = "duy273224605"
+    DB_PASSWORD: str = "258463"
     DB_NAME: str = "ai_roi_camera"
 
     # Security

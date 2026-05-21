@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.core.security import verify_password, create_access_token, hash_password
+from app.core.security import verify_password, create_access_token, hash_password, decode_token
 from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.models.fcm_token import FCMToken
+from app.models.token_blacklist import TokenBlacklist
 from app.schemas.auth import LoginRequest, FCMTokenRequest, LogoutRequest
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -40,12 +41,27 @@ def register_fcm(
 @router.delete("/logout")
 def logout(
     body: LogoutRequest,
+    authorization: str = Header(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    # Xóa FCM token của thiết bị này
     db.query(FCMToken).filter(
         FCMToken.user_id == current_user.id,
         FCMToken.device_name == body.device_id
     ).delete()
+    
+    # Blacklist JWT token hiện tại — logout tức thì
+    if authorization and authorization.startswith("Bearer "):
+        token = authorization[7:]
+        try:
+            payload = decode_token(token)
+            jti = payload.get("jti")
+            if jti:
+                blacklisted = TokenBlacklist(token_jti=jti)
+                db.add(blacklisted)
+        except Exception:
+            pass  # Nếu decode lỗi thì vẫn xóa FCM token
+    
     db.commit()
     return {"success": True, "message": "Logged out successfully"}

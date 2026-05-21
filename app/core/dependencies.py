@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import decode_token
 from app.models.user import User, UserRole
+from app.models.token_blacklist import TokenBlacklist
 
 bearer_scheme = HTTPBearer()
 
@@ -18,6 +19,13 @@ def get_current_user(
         user_id: int = payload.get("sub")
         if user_id is None:
             raise HTTPException(status_code=401, detail={"code": "UNAUTHORIZED", "message": "Invalid token"})
+        
+        # Kiểm tra token có bị blacklist (logout) không
+        token_jti = payload.get("jti")
+        if token_jti:
+            blacklisted = db.query(TokenBlacklist).filter(TokenBlacklist.token_jti == token_jti).first()
+            if blacklisted:
+                raise HTTPException(status_code=401, detail={"code": "TOKEN_BLACKLISTED", "message": "Token has been revoked"})
     except JWTError:
         raise HTTPException(status_code=401, detail={"code": "TOKEN_EXPIRED", "message": "Token expired or invalid"})
 

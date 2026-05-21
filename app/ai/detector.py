@@ -114,7 +114,7 @@ class IntrusionDetector:
 
     def process_frame(self, frame: np.ndarray) -> dict:
         """
-        Xử lý 1 frame ảnh từ camera.
+        Xử lý 1 frame ảnh từ camera với optimization ROI-based inference.
 
         Args:
             frame: numpy array ảnh (BGR format từ OpenCV)
@@ -132,26 +132,62 @@ class IntrusionDetector:
                 "timestamp": "2026-05-11T14:00:00.123456"
             }
         """
-        results = self.model(
-            frame,
-            classes=[0],        # Class 0 = person (COCO dataset)
-            conf=self.confidence,
-            device=self.device,
-            verbose=False
-        )
+        with self._lock:
+            roi = self.roi_polygon
 
-        intruders = []
+        # ROI-based inference optimization
+        if roi is not None:
+            # Get ROI bounding box for cropping
+            roi_coords = np.array(list(roi.exterior.coords), np.int32)
+            x, y, w, h = cv2.boundingRect(roi_coords)
+            
+            # Crop frame to ROI area for faster inference
+            roi_frame = frame[y:y+h, x:x+w]
+            
+            # Run YOLO only on ROI area
+            results = self.model(
+                roi_frame,
+                classes=[0],        # Class 0 = person (COCO dataset)
+                conf=self.confidence,
+                device=self.device,
+                verbose=False
+            )
+            
+            # Adjust bounding boxes back to original coordinates
+            intruders = []
+            for result in results:
+                for box in result.boxes:
+                    bbox = box.xyxy[0].tolist()  # [x1, y1, x2, y2]
+                    # Convert back to original frame coordinates
+                    bbox = [bbox[0] + x, bbox[1] + y, bbox[2] + x, bbox[3] + y]
+                    conf = float(box.conf[0])
 
-        for result in results:
-            for box in result.boxes:
-                bbox = box.xyxy[0].tolist()  # [x1, y1, x2, y2]
-                conf = float(box.conf[0])
+                    if self._check_intrusion(bbox):
+                        intruders.append({
+                            "bbox"      : bbox,
+                            "confidence": round(conf, 2)
+                        })
+        else:
+            # Fallback to full frame inference if no ROI
+            results = self.model(
+                frame,
+                classes=[0],        # Class 0 = person (COCO dataset)
+                conf=self.confidence,
+                device=self.device,
+                verbose=False
+            )
 
-                if self._check_intrusion(bbox):
-                    intruders.append({
-                        "bbox"      : bbox,
-                        "confidence": round(conf, 2)
-                    })
+            intruders = []
+            for result in results:
+                for box in result.boxes:
+                    bbox = box.xyxy[0].tolist()  # [x1, y1, x2, y2]
+                    conf = float(box.conf[0])
+
+                    if self._check_intrusion(bbox):
+                        intruders.append({
+                            "bbox"      : bbox,
+                            "confidence": round(conf, 2)
+                        })
 
         output = {
             "alert"    : len(intruders) > 0,

@@ -23,20 +23,21 @@ def zone_to_dict(z: Zone) -> dict:
     }
 
 def push_roi_to_detector(request: Request, db: Session):
-    """Lấy tất cả zone active và cập nhật ROI đầu tiên lên detector"""
+    """Lấy tất cả zone active và cập nhật ROI chuẩn hóa lên detector"""
     active_zone = db.query(Zone).filter(Zone.is_active == True).first()
     if not active_zone:
         return
 
-    # Chuyển tọa độ % → pixel (1280x720)
-    coords_pixel = [
-        (c["x"] / 100 * 1280, c["y"] / 100 * 720)
+    # Chỉ cần trích xuất dạng tuple (x, y) từ 0.0 - 1.0, KHÔNG nhân pixel nữa
+    coords_norm = [
+        (float(c["x"]), float(c["y"]))
         for c in active_zone.coordinates
     ]
 
-    detector = request.app.state.detector
-    detector.update_roi(coords_pixel)
-    print(f"[ROI] Updated from zone '{active_zone.name}': {coords_pixel}")
+    if hasattr(request.app.state, 'detector') and request.app.state.detector:
+        detector = request.app.state.detector
+        detector.update_roi(coords_norm)
+        print(f"[ROI] Updated normalized coords to AI: {coords_norm}")
 
 
 @router.post("", status_code=201)

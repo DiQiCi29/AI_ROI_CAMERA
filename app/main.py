@@ -1,55 +1,104 @@
+import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
+
+# ── CẤU HÌNH LOGGING ÉP BUỘC (TẮT RÁC SQL) ────────────────────
+logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+logging.getLogger("sqlalchemy.engine.Engine").setLevel(logging.WARNING)
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(asctime)s] %(levelname)s: %(message)s",
+    datefmt="%H:%M:%S",
+    force=True
+)
+# ─────────────────────────────────────────────────────────────
+
 from app.core.config import settings
-from app.core.database import engine, Base
+from app.core.database import engine, Base, SessionLocal
 from app.api.v1.routes import health, stream, auth, zones, alerts, logs, media, websocket, devices
 from app.ai.detector import IntrusionDetector
 from app.services.mqtt_client import mqtt_client
 from app.services.mqtt_listener import mqtt_listener
-import app.models
-import logging
-
-logger = logging.getLogger(__name__)
-
-# Import exception handlers và FCM service
 from app.core.exceptions import register_exception_handlers
 from app.services.fcm_service import FCMService
 from app.services.mqtt_service import MQTTService
+from app.models.zone import Zone
+from app.models.camera import Camera
+from app.services.ai_worker import AIWorker
 
-# ── Alembic quản lý migration (chạy "alembic upgrade head" để cập nhật) ──
-# create_all() vẫn giữ làm fallback cho lần chạy đầu tiên
 Base.metadata.create_all(bind=engine)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """FastAPI lifespan events - startup & shutdown"""
+    """Quản lý các tiến trình khởi động và tắt server"""
+    print("🚀 Starting AI_ROI_CAMERA Server...")
     
-    # ════ STARTUP ════════════════════════════════════════════════════════
-    logger.info("🚀 Starting AI_ROI_CAMERA Server...")
-    
-    # Connect to MQTT Broker
+    # 1. Khởi tạo MQTT
     try:
         mqtt_client.connect()
         await mqtt_listener.init_listeners()
-        logger.info("✓ MQTT initialized successfully")
+        print("✓ MQTT initialized successfully")
     except Exception as e:
-        logger.error(f"✗ MQTT initialization failed: {str(e)}")
-    
-    yield  # Server running
-    
-    # ════ SHUTDOWN ═══════════════════════════════════════════════════════
-    logger.info("🛑 Shutting down AI_ROI_CAMERA Server...")
-    
-    # Disconnect from MQTT
+        print(f"✗ MQTT initialization failed: {str(e)}")
+
+    # 2. Khởi tạo FCM & Hardware Services
+    FCMService.initialize()
+    MQTTService.initialize()
+
+    # 3. Khởi tạo AI Detector
+    app.state.detector = IntrusionDetector(
+        model_path="app/ai/yolov8s.pt",
+        confidence=0.5
+    )
+    print("✓ AI Detector ready!")
+
+    # 4. Phục hồi vùng Zone & Bật AI Worker chạy ngầm
+    db = SessionLocal()
+    try:
+        active_zone = db.query(Zone).filter(Zone.is_active == True).first()
+        if active_zone:
+            coords_norm = [(float(c["x"]), float(c["y"])) for c in active_zone.coordinates]
+            app.state.detector.update_roi(coords_norm)
+            print(f"✓ Restored ROI from DB: {active_zone.name}")
+        else:
+            app.state.detector.update_roi([(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)])
+            print("✓ Default ROI applied")
+
+        camera = db.query(Camera).filter(Camera.is_active == True).first()
+        rtsp_url = camera.rtsp_url if camera else f"rtsp://{settings.MEDIAMTX_HOST}:8554/camera_01"
+        cam_id = camera.id if camera else 1
+        
+        # BẬT AI WORKER
+        app.state.ai_worker = AIWorker(
+            detector=app.state.detector,
+            rtsp_url=rtsp_url,
+            camera_id=cam_id
+        )
+        app.state.ai_worker.start()
+        print(f"✓ AI Worker started successfully for camera {cam_id}!")
+
+    except Exception as e:
+        print(f"⚠️ [Server] Failed to start AI Worker: {str(e)}")
+    finally:
+        db.close()
+
+    yield  # ─── SERVER ĐANG CHẠY ───
+
+    # 5. Dọn dẹp khi tắt server
+    print("🛑 Shutting down AI_ROI_CAMERA Server...")
     try:
         mqtt_client.disconnect()
-        logger.info("✓ MQTT disconnected")
-    except Exception as e:
-        logger.error(f"✗ MQTT disconnection error: {str(e)}")
+    except Exception:
+        pass
+    
+    if hasattr(app.state, 'ai_worker'):
+        app.state.ai_worker.stop()
 
-
+# Khởi tạo App với lifespan
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
@@ -66,42 +115,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ── Khởi tạo AI detector và các service khác ──────────────────
-@app.on_event("startup")
-async def startup_event():
-    app.state.detector = IntrusionDetector(
-        model_path="app/ai/yolov8s.pt",
-        confidence=0.5
-    )
-    # ROI mặc định = toàn bộ khung hình 1280x720
-    app.state.detector.update_roi([
-        (0, 0), (1280, 0), (1280, 720), (0, 720)
-    ])
-    print("[Server] AI Detector ready!")
-    
-    # Khởi tạo FCM service
-    FCMService.initialize()
-    
-    # Khởi tạo MQTT service cho IoT devices (ESP32, Arduino)
-    MQTTService.initialize()
-    
-    print("Application startup complete")
-
-
-# ── Đăng ký Exception Handlers ────────────────────────────────
 register_exception_handlers(app)
 
-# ── Routes ────────────────────────────────────────────────
+# Routes
 prefix = "/api/v1"
-app.include_router(health.router,     prefix=prefix)
-app.include_router(auth.router,       prefix=prefix)
-app.include_router(stream.router,     prefix=prefix)
-app.include_router(zones.router,      prefix=prefix)
-app.include_router(alerts.router,     prefix=prefix)
-app.include_router(logs.router,       prefix=prefix)
-app.include_router(media.router,      prefix=prefix)
-app.include_router(devices.router,   prefix=prefix)  # NEW: Device control
-app.include_router(websocket.router)  # Không có prefix, dùng /ws trực tiếp
+app.include_router(health.router, prefix=prefix)
+app.include_router(auth.router, prefix=prefix)
+app.include_router(stream.router, prefix=prefix)
+app.include_router(zones.router, prefix=prefix)
+app.include_router(alerts.router, prefix=prefix)
+app.include_router(logs.router, prefix=prefix)
+app.include_router(media.router, prefix=prefix)
+app.include_router(devices.router, prefix=prefix)
+app.include_router(websocket.router) 
 
 @app.get("/", tags=["Root"])
 async def root():

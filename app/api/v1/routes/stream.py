@@ -118,91 +118,6 @@ def generate_plain_frames(rtsp_url: str):
         proc.kill()
 
 
-def generate_ai_frames(detector, rtsp_url: str, width=640, height=360, fps=10, transport="udp"):
-    """Stream có AI — vẽ ROI + bounding box người xâm nhập"""
-    proc = open_ffmpeg_pipe(rtsp_url, width=width, height=height, fps=fps, transport=transport)
-    frame_size = width * height * 3
-    try:
-        while True:
-            raw = proc.stdout.read(frame_size)
-            if len(raw) < frame_size:
-                break
-
-            frame = np.frombuffer(raw, dtype=np.uint8).reshape((height, width, 3))
-            output = detector.process_frame(frame)
-            annotated = detector.draw_frame(frame, output)
-            annotated = cv2.resize(annotated, (640, 360))
-            _, buffer = cv2.imencode(
-                ".jpg", annotated,
-                [cv2.IMWRITE_JPEG_QUALITY, 75]
-            )
-            yield (
-                b"--frame\r\n"
-                b"Content-Type: image/jpeg\r\n\r\n"
-                + buffer.tobytes()
-                + b"\r\n"
-            )
-    finally:
-        proc.kill()
-
-
-def generate_ai_frames_cv(detector, cap):
-    """Stream AI với OpenCV direct capture cho low latency"""
-    try:
-        while True:
-            ret, frame = cap.read()
-            if not ret:
-                print("[OpenCV] Failed to read frame")
-                break
-
-            # ── Chạy AI với optimization ROI-based ───────────
-            output = detector.process_frame(frame)
-
-            # ── Vẽ annotation lên frame ───────────────────────
-            annotated = detector.draw_frame(frame, output)
-
-            # ── Resize cho mobile ────────────────────────────
-            annotated = cv2.resize(annotated, (640, 360))
-
-            # ── Encode JPEG ───────────────────────────────────
-            _, buffer = cv2.imencode(
-                ".jpg", annotated,
-                [cv2.IMWRITE_JPEG_QUALITY, 75]
-            )
-            yield (
-                b"--frame\r\n"
-                b"Content-Type: image/jpeg\r\n\r\n"
-                + buffer.tobytes()
-                + b"\r\n"
-            )
-    finally:
-        cap.release()
-
-
-def get_ai_frame_generator(detector, rtsp_url: str):
-    """Try OpenCV direct capture first; fallback to FFmpeg with transport fallback."""
-    try:
-        cap = open_cv_capture(rtsp_url, width=640, height=360, fps=10)
-        return generate_ai_frames_cv(detector, cap)
-    except RuntimeError as exc:
-        logging.warning("OpenCV RTSP capture failed, falling back to FFmpeg AI stream: %s", exc)
-
-    transports = ["tcp", "udp"]
-    last_error = None
-    for transport in transports:
-        gen = generate_ai_frames(detector, rtsp_url, width=640, height=360, fps=10, transport=transport)
-        try:
-            first_chunk = next(gen)
-            return itertools.chain([first_chunk], gen)
-        except RuntimeError as exc:
-            last_error = exc
-            logging.warning("FFmpeg AI stream failed using transport=%s: %s", transport, exc)
-            continue
-    raise HTTPException(status_code=503, detail={
-        "code": "CAMERA_STREAM_UNAVAILABLE",
-        "message": "Không thể mở luồng AI từ camera. Vui lòng kiểm tra kết nối RTSP hoặc cấu hình camera."
-    })
-
 
 # ── Endpoints ─────────────────────────────────────────────────
 
@@ -214,22 +129,6 @@ def stream_video(camera_id: int = Query(1, ge=1, description="Camera ID"),
     rtsp_url = get_camera_rtsp_url(camera_id, db)
     return StreamingResponse(
         generate_plain_frames(rtsp_url),
-        media_type="multipart/x-mixed-replace; boundary=frame",
-        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"}
-    )
-
-
-@router.get("/video/ai")
-def stream_video_ai(request: Request,
-                    camera_id: int = Query(1, ge=1, description="Camera ID"),
-                    current_user: User = Depends(get_current_user),
-                    db: Session = Depends(get_db)):
-    """Stream video có AI — vẽ ROI và bounding box người xâm nhập"""
-    rtsp_url = get_camera_rtsp_url(camera_id, db)
-    detector = request.app.state.detector
-    generator = get_ai_frame_generator(detector, rtsp_url)
-    return StreamingResponse(
-        generator,
         media_type="multipart/x-mixed-replace; boundary=frame",
         headers={"Cache-Control": "no-cache", "Connection": "keep-alive"}
     )

@@ -17,8 +17,9 @@ class ZoneCreate(BaseModel):
     @field_validator("coordinates")
     def validate_coords(cls, coords):
         for c in coords:
-            if not (0 <= c.x <= 100 and 0 <= c.y <= 100):
-                raise ValueError("Coordinates must be between 0 and 100 (%)")
+            # Đổi từ 100 sang 1.0
+            if not (0.0 <= c.x <= 1.0 and 0.0 <= c.y <= 1.0):
+                raise ValueError("Coordinates must be normalized between 0.0 and 1.0")
         return coords
 
 class ZoneUpdate(BaseModel):
@@ -36,7 +37,6 @@ class ZoneResponse(BaseModel):
     is_active: bool
     alert_cooldown_seconds: int
     created_at: datetime
-    # updated_at: Optional[datetime] = None  # Removed: column deleted from database
 
     class Config:
         from_attributes = True

@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     MEDIAMTX_HOST: str = "localhost"
     MEDIAMTX_PORT: int = 9997
 
+    # MQTT Broker
+    MQTT_HOST: str = "localhost"
+    MQTT_PORT: int = 1883
+    MQTT_USERNAME: str = "mqtt_user"
+    MQTT_PASSWORD: str = "mqtt_pass"
+    MQTT_KEEPALIVE: int = 60
+    MQTT_QOS: int = 1
+
     @property
     def DATABASE_URL(self) -> str:
         return f"mysql+pymysql://{self.DB_USER}:{self.DB_PASSWORD}@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"

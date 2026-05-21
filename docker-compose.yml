@@ -7,8 +7,7 @@ services:
       - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: 258463
-      MYSQL_DATABASE: ai_roi_camera
-      MYSQL_ROOT_HOST: '%'
+      MYSQL_DATABASE: AI_ROI_CAMERA
     volumes:
       - mysql_data:/var/lib/mysql
 

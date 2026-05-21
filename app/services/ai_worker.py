@@ -47,7 +47,7 @@ class AIWorker:
             # Bỏ ảnh vào YOLO
             output = self.detector.process_frame(frame)
 #log test
-            print(f"[AI Worker] Frame read. Alert: {output['alert']} | Intruders: {len(output['intruders'])}")
+            # print(f"[AI Worker] Frame read. Alert: {output['alert']} | Intruders: {len(output['intruders'])}")
 
             # Bắn WebSocket (real-time live stream tọa độ)
             if output["alert"]:

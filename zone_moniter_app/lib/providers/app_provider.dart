@@ -1,5 +1,6 @@
 // lib/providers/app_provider.dart
 
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import '../models/zone_model.dart';
 import '../services/api_service.dart';
@@ -10,11 +11,12 @@ import '../config/app_config.dart';
 class AppProvider extends ChangeNotifier {
   bool _isLoggedIn = false;
   String? _token;
+  Uint8List? _cameraSnapshotBytes;
   int _unreadCount = 0;
   bool _cameraOnline = false;
-  String? _currentCameraId; // Added
+  String? _currentCameraId;
+  bool _isLoading = false;
   List<ZoneModel> _zones = [];
-  bool isLoading = false;
 
   // Trạng thái cảnh báo xâm nhập trực tiếp
   Map<String, dynamic>? _activeAlert;
@@ -23,9 +25,11 @@ class AppProvider extends ChangeNotifier {
 
   bool get isLoggedIn => _isLoggedIn;
   String? get token => _token;
+  Uint8List? get cameraSnapshotBytes => _cameraSnapshotBytes;
   int get unreadCount => _unreadCount;
   bool get cameraOnline => _cameraOnline;
-  String? get currentCameraId => _currentCameraId; // Added
+  bool get isLoading => _isLoading;
+  String? get currentCameraId => _currentCameraId;
   List<ZoneModel> get zones => _zones;
 
   final WebSocketService _ws = WebSocketService();
@@ -135,15 +139,19 @@ class AppProvider extends ChangeNotifier {
 
   // ─── Zones ─────────────────────────────────────────────
   Future<void> loadZones() async {
+    _isLoading = true;
+    notifyListeners();
+
     try {
-      isLoading = true;
-      final intId = int.tryParse(_currentCameraId ?? "");
-      _zones = await ApiService.instance.getZones(cameraId: intId);
-      notifyListeners();
+      final int? camId = int.tryParse(_currentCameraId ?? '');
+      _zones = await ApiService.instance.getZones(cameraId: camId);
+      debugPrint("✓ [Provider] Loaded ${_zones.length} zones successfully.");
     } catch (e) {
-      debugPrint('Lỗi load Zones: $e');
+      debugPrint("✗ [Provider] Exception inside loadZones: $e");
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-    isLoading = false;
   }
 
   Future<bool> createZone(Map<String, dynamic> data) async {
@@ -169,6 +177,7 @@ class AppProvider extends ChangeNotifier {
       }
       return false;
     } catch (e) {
+      debugPrint('Lỗi xóa Zone: $e');
       return false;
     }
   }
@@ -184,7 +193,9 @@ class AppProvider extends ChangeNotifier {
           notifyListeners();
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      debugPrint('Lỗi bật/tắt Zone: $e');
+    }
   }
 
   // ─── Alerts & Stats ────────────────────────────────────
@@ -192,7 +203,9 @@ class AppProvider extends ChangeNotifier {
     try {
       _unreadCount = await ApiService.instance.getUnreadCount();
       notifyListeners();
-    } catch (e) {}
+    } catch (e) {
+      debugPrint('Error refreshing unread count: $e');
+    }
   }
 
   Future<void> refreshCameraStatus() async {
@@ -223,4 +236,27 @@ class AppProvider extends ChangeNotifier {
       refreshCameraStatus();
     }
   }
+  Future<bool> fetchCameraSnapshot() async {
+    _isLoading = true;
+    _cameraSnapshotBytes = null;
+    notifyListeners();
+
+    try {
+      final int camId = int.tryParse(_currentCameraId ?? '') ?? 1;
+      final Uint8List? bytes = await ApiService.getCameraSnapshotBytes(camId);
+
+      if (bytes != null && bytes.isNotEmpty) {
+        _cameraSnapshotBytes = bytes;
+        return true;
+      }
+      return false;
+    } catch (e) {
+      debugPrint("✗ [Provider] Lỗi xử lý ảnh snapshot: $e");
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 }
+

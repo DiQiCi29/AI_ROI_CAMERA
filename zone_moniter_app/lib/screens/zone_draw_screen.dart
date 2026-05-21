@@ -7,10 +7,10 @@ import '../models/zone_model.dart';
 import '../widgets/zone_painter.dart';
 
 class ZoneDrawScreen extends StatefulWidget {
-  final Uint8List? currentFrame;
+  final Uint8List currentFrame;
   final List<ZoneModel>? existingZones;
   final String? cameraId;
-  const ZoneDrawScreen({super.key, this.currentFrame, this.existingZones, this.cameraId});
+  const ZoneDrawScreen({super.key, required this.currentFrame, this.existingZones, this.cameraId});
   @override
   State<ZoneDrawScreen> createState() => _ZoneDrawScreenState();
 }
@@ -28,14 +28,16 @@ class _ZoneDrawScreenState extends State<ZoneDrawScreen> {
   }
 
   Future<void> _loadImageInfo() async {
-    if (widget.currentFrame != null) {
-      final codec = await ui.instantiateImageCodec(widget.currentFrame!);
+    try {
+      final codec = await ui.instantiateImageCodec(widget.currentFrame);
       final frame = await codec.getNextFrame();
       if (mounted) {
         setState(() {
           _imageInfo = frame.image;
         });
       }
+    } catch (e) {
+      debugPrint("✗ [ZoneDraw] Lỗi decode ảnh: $e");
     }
   }
 
@@ -101,7 +103,7 @@ class _ZoneDrawScreenState extends State<ZoneDrawScreen> {
           Container(padding: const EdgeInsets.all(12), color: const Color(0xFF1565C0).withOpacity(0.2), width: double.infinity, child: const Text('Chạm để khoanh vùng. Toạ độ tính theo % khung hình ảnh.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 13))),
           Expanded(
             child: Center(
-              child: widget.currentFrame == null || _imageInfo == null 
+              child: _imageInfo == null 
                   ? const CircularProgressIndicator() 
                   : LayoutBuilder(builder: (context, constraints) {
                       // Tính toán tỷ lệ khung hình của ảnh
@@ -113,7 +115,7 @@ class _ZoneDrawScreenState extends State<ZoneDrawScreen> {
                           return GestureDetector(
                             onTapUp: (details) => _handleTap(details, innerConstraints),
                             child: Stack(children: [
-                              Image.memory(widget.currentFrame!, width: innerConstraints.maxWidth, height: innerConstraints.maxHeight, fit: BoxFit.fill),
+                              Image.memory(widget.currentFrame, width: innerConstraints.maxWidth, height: innerConstraints.maxHeight, fit: BoxFit.fill),
                               Positioned.fill(
                                 child: IgnorePointer(
                                   child: CustomPaint(

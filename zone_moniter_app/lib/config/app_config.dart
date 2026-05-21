@@ -1,7 +1,7 @@
 // lib/config/app_config.dart
 
 class AppConfig {
-  static String baseUrl = 'http://192.168.1.100:8000/api/v1';
+  static String baseUrl = 'http://192.168.0.4:8000/api/v1';
 
   static String get wsUrl {
     try {
@@ -9,7 +9,7 @@ class AppConfig {
       String scheme = uri.scheme == 'https' ? 'wss' : 'ws';
       return '$scheme://${uri.host}:${uri.port}/ws';
     } catch (e) {
-      return 'ws://192.168.1.100:8000/ws'; 
+      return 'ws://192.168.0.4:8000/ws';
     }
   }
 

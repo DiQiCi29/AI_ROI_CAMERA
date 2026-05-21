@@ -14,7 +14,7 @@ class _ZoneListScreenState extends State<ZoneListScreen> {
   @override
   void initState() {
     super.initState();
-    // Gọi tải dữ liệu mỗi khi màn hình này được mở
+    // Tự động đồng bộ gọi dữ liệu từ Database về khi mở trang
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AppProvider>().loadZones();
     });
@@ -23,45 +23,64 @@ class _ZoneListScreenState extends State<ZoneListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Quản lý Vùng Cấm', style: TextStyle(fontWeight: FontWeight.bold))),
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: const Text('Quản Lý Vùng Cấm', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        backgroundColor: const Color(0xFF1A1A2E),
+      ),
       body: Consumer<AppProvider>(
         builder: (context, provider, child) {
-          // Hiển thị loading nếu đang tải
           if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator(color: Colors.red));
           }
 
           if (provider.zones.isEmpty) {
-            return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.crop_free_rounded, size: 80, color: Colors.white24), const SizedBox(height: 16), const Text('Chưa có vùng cấm nào', style: TextStyle(color: Colors.white54, fontSize: 16))]));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.shield_outlined, size: 64, color: Colors.white24),
+                  const SizedBox(height: 16),
+                  const Text('Không có vùng cấm nào trong Database', style: TextStyle(color: Colors.white54)),
+                ],
+              ),
+            );
           }
 
           return RefreshIndicator(
-            onRefresh: provider.loadZones,
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16), itemCount: provider.zones.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
+            onRefresh: () => provider.loadZones(),
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: provider.zones.length,
               itemBuilder: (context, index) {
                 final zone = provider.zones[index];
                 return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  color: const Color(0xFF161623),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    leading: Icon(
+                      zone.isActive ? Icons.shield : Icons.shield_outlined,
+                      color: zone.isActive ? Colors.red : Colors.grey,
+                      size: 28,
+                    ),
+                    title: Text(zone.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    subtitle: Text(
+                      'Số điểm nút: ${zone.coordinates.length}\nNgày tạo: ${DateFormat('dd/MM/yyyy HH:mm').format(zone.createdAt.toLocal())}',
+                      style: const TextStyle(color: Colors.white54, fontSize: 12),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Row(
-                          children: [
-                            Icon(zone.isActive ? Icons.shield : Icons.shield_outlined, color: zone.isActive ? Colors.red : Colors.grey), const SizedBox(width: 12),
-                            Expanded(child: Text(zone.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white))),
-                            Switch(value: zone.isActive, activeColor: Colors.red, onChanged: (val) => provider.toggleZone(zone.zoneId)),
-                          ],
+                        Switch(
+                          value: zone.isActive,
+                          activeColor: Colors.red,
+                          onChanged: (value) => provider.toggleZone(zone.zoneId),
                         ),
-                        const Divider(color: Colors.white10, height: 24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Ngày tạo: ${DateFormat('dd/MM/yyyy').format(zone.createdAt.toLocal())}', style: const TextStyle(color: Colors.white54, fontSize: 12)), const SizedBox(height: 4), Text('Số điểm: ${zone.coordinates.length}', style: const TextStyle(color: Colors.white54, fontSize: 12))]),
-                            IconButton(icon: const Icon(Icons.delete_outline, color: Colors.redAccent), onPressed: () => provider.deleteZone(zone.zoneId)),
-                          ],
+                        IconButton(
+                          icon: const Icon(Icons.delete_sweep_outlined, color: Colors.redAccent),
+                          onPressed: () => provider.deleteZone(zone.zoneId),
                         ),
                       ],
                     ),

@@ -6,8 +6,16 @@ class ZonePoint {
 
   const ZonePoint({required this.x, required this.y});
 
-  factory ZonePoint.fromJson(Map<String, dynamic> j) =>
-      ZonePoint(x: (j['x'] as num).toDouble(), y: (j['y'] as num).toDouble());
+  factory ZonePoint.fromJson(Map<String, dynamic> j) {
+    double x = (j['x'] as num).toDouble();
+    double y = (j['y'] as num).toDouble();
+    // Tự động chuẩn hóa nếu dữ liệu là hệ 0-100 thay vì 0-1
+    if (x > 1.0 || y > 1.0) {
+      x /= 100.0;
+      y /= 100.0;
+    }
+    return ZonePoint(x: x, y: y);
+  }
 
   Map<String, dynamic> toJson() => {'x': x, 'y': y};
 }

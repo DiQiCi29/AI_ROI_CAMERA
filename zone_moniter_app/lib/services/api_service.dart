@@ -1,7 +1,9 @@
 // lib/services/api_service.dart
 
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
 import '../models/zone_model.dart';
@@ -185,16 +187,22 @@ class ApiService {
     return _handleResponse(response);
   }
 
-  Future<Uint8List?> getSnapshot({int cameraId = 1}) async {
+  static Future<Uint8List?> getCameraSnapshotBytes(int cameraId) async {
     try {
-      final response = await _dio.get(
-        '/stream/snapshot',
-        queryParameters: {'camera_id': cameraId},
-        options: Options(responseType: ResponseType.bytes),
+      final token = await getToken();
+      final response = await http.get(
+        Uri.parse('${AppConfig.snapshot}?camera_id=$cameraId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
       );
-      return Uint8List.fromList(response.data);
+
+      if (response.statusCode == 200) {
+        return response.bodyBytes; // Trả về mảng byte nguyên bản
+      }
+      return null;
     } catch (e) {
-      debugPrint('API getSnapshot error: $e');
+      debugPrint("✗ Lỗi ApiService getSnapshot: $e");
       return null;
     }
   }
@@ -205,8 +213,15 @@ class ApiService {
       if (cameraId != null) 'camera_id': cameraId,
       if (isActive != null) 'is_active': isActive,
     });
-    final list = _handleResponse(response)['zones'] as List;
-    return list.map((e) => ZoneModel.fromJson(e)).toList();
+    // data là List trực tiếp
+    final raw = _handleResponse(response);
+    final List<dynamic> tempList;
+    if (raw is List) {
+      tempList = raw as List<dynamic>;
+    } else {
+      tempList = (raw['zones'] as List?) ?? [];
+    }
+    return tempList.map((e) => ZoneModel.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<ZoneModel> createZone(Map<String, dynamic> data) async {

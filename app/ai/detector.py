@@ -55,8 +55,10 @@ class IntrusionDetector:
         self.camera_id = camera_id
         self.last_alert_time = None
         self.alert_cooldown = 2
-        
+        self.latest_frame = None
+
         print(f"[Detector] Running on : {self.device}")
+        
 
     def update_roi(self, roi_points_norm: list) -> bool:
         """
@@ -94,7 +96,7 @@ class IntrusionDetector:
     def process_frame(self, frame: np.ndarray) -> dict:
         """Xử lý frame và trả về BBox chuẩn hóa"""
         height, width = frame.shape[:2]
-        
+        self.latest_frame = frame.copy()
         # 1. Tạo Polygon theo kích thước pixel thực tế của frame hiện tại
         with self._lock:
             if self.roi_normalized:
@@ -135,7 +137,7 @@ class IntrusionDetector:
                     })
 
         # --- THÊM DÒNG LOG NÀY ĐỂ DEBUG ---
-        print(f"[Detector] Frame size: {width}x{height} | YOLO found total: {total_people_found} people | Inside ROI: {len(intruders)}")
+        # print(f"[Detector] Frame size: {width}x{height} | YOLO found total: {total_people_found} people | Inside ROI: {len(intruders)}")
 
         output = {
             "alert"    : len(intruders) > 0,

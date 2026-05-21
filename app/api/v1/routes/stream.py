@@ -4,8 +4,8 @@ import logging
 import subprocess
 import numpy as np
 import cv2
-from fastapi import APIRouter, Depends, HTTPException, Request, Query
-from fastapi.responses import StreamingResponse, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Query, logger
+from fastapi.responses import StreamingResponse, Response, JSONResponse
 from sqlalchemy.orm import Session
 from app.core.dependencies import get_current_user
 from app.core.config import settings
@@ -135,25 +135,41 @@ def stream_video(camera_id: int = Query(1, ge=1, description="Camera ID"),
 
 
 @router.get("/snapshot")
-def get_snapshot(camera_id: int = Query(1, ge=1, description="Camera ID"),
-                current_user: User = Depends(get_current_user),
-                db: Session = Depends(get_db)):
-    """Chụp 1 ảnh tĩnh từ camera"""
-    rtsp_url = get_camera_rtsp_url(camera_id, db)
-    cmd = [
-        "ffmpeg", "-rtsp_transport", "udp",
-        "-i", rtsp_url,
-        "-frames:v", "1",
-        "-f", "image2", "-vcodec", "mjpeg", "pipe:1"
-    ]
-    proc = subprocess.run(cmd, stdout=subprocess.PIPE,
-                          stderr=subprocess.DEVNULL, timeout=10)
-    if not proc.stdout:
-        raise HTTPException(status_code=503, detail={
-            "code": "CAMERA_OFFLINE",
-            "message": "Không thể lấy ảnh từ camera"
-        })
-    return Response(content=proc.stdout, media_type="image/jpeg")
+async def get_snapshot(request: Request, camera_id: int = 1, 
+                       current_user: User = Depends(get_current_user),
+                       db: Session = Depends(get_db)):
+    """Trích xuất frame ảnh mới nhất từ AI Detector (hoặc đọc trực tiếp từ RTSP) và trả về binary JPEG"""
+    try:
+        import os
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
+        
+        detector = getattr(request.app.state, "detector", None)
+        
+        # Ưu tiên dùng frame đã cache từ AI Detector
+        if detector is not None and detector.latest_frame is not None:
+            frame = detector.latest_frame
+        else:
+            # Fallback: đọc trực tiếp 1 frame từ RTSP
+            logger.warning("⚠️ [Snapshot] Detector frame not ready, reading directly from RTSP")
+            rtsp_url = get_camera_rtsp_url(camera_id, db)
+            cap = cv2.VideoCapture(f"{rtsp_url}?transport=tcp", cv2.CAP_FFMPEG)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            ret, frame = cap.read()
+            cap.release()
+            if not ret or frame is None:
+                raise HTTPException(status_code=503, detail="Cannot read frame from camera")
+        
+        # Mã hóa thành JPEG
+        success, encoded_image = cv2.imencode(".jpg", frame)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to encode snapshot")
+
+        return Response(content=encoded_image.tobytes(), media_type="image/jpeg")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"✗ [Snapshot] Error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/status")

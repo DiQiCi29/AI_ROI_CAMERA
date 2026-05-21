@@ -13,6 +13,7 @@ import json
 import logging
 from typing import Callable, Optional
 from app.core.config import settings
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -32,28 +33,28 @@ class MqttClient:
         self.client.on_publish = self._on_publish
     
     def connect(self) -> bool:
-        """
-        Kết nối tới MQTT broker
-        
-        Returns:
-            True nếu connect thành công, False nếu thất bại
-        """
         try:
-            # Set username/password
             self.client.username_pw_set(
                 settings.MQTT_USERNAME,
                 settings.MQTT_PASSWORD
             )
-            
-            # Connect to broker
             self.client.connect(
                 settings.MQTT_HOST,
                 settings.MQTT_PORT,
                 keepalive=settings.MQTT_KEEPALIVE
             )
-            
-            # Start background thread để process network events
             self.client.loop_start()
+            
+            # ✅ Chờ tối đa 5 giây cho đến khi connected
+            timeout = 5
+            start = time.time()
+            while not self.connected and (time.time() - start) < timeout:
+                time.sleep(0.1)
+            
+            if not self.connected:
+                logger.error("✗ MQTT: Timeout khi chờ kết nối")
+                return False
+                
             logger.info(f"✓ MQTT: Kết nối {settings.MQTT_HOST}:{settings.MQTT_PORT}")
             return True
             
@@ -116,19 +117,12 @@ class MqttClient:
             return False
     
     def subscribe(self, topic: str, qos: int = None) -> bool:
-        """
-        Subscribe tới topic
-        
-        Args:
-            topic: MQTT topic pattern (VD: alerts/camera_+/intrusion)
-            qos: Quality of Service
-            
-        Returns:
-            True nếu subscribe thành công
-        """
         try:
             if qos is None:
                 qos = settings.MQTT_QOS
+            
+            # ✅ Thêm dòng này để thấy topic nào gây lỗi
+            logger.info(f"🔍 MQTT Attempting subscribe: '{topic}' (QoS {qos})")
             
             result = self.client.subscribe(topic, qos=qos)
             
@@ -140,9 +134,10 @@ class MqttClient:
                 return False
                 
         except Exception as e:
-            logger.error(f"✗ MQTT: Lỗi subscribe - {str(e)}")
+            # ✅ Thêm topic vào log lỗi
+            logger.error(f"✗ MQTT: Lỗi subscribe topic='{topic}' - {str(e)}")
             return False
-    
+        
     def set_on_message_callback(self, callback: Callable):
         """Set custom callback khi nhận message"""
         self.on_message_callback = callback

@@ -1,0 +1,133 @@
+1779335089: mosquitto version 2.1.2 starting
+1779335089: Config loaded from /mosquitto/config/mosquitto.conf.
+1779335089: Bridge support available.
+1779335089: Persistence support available.
+1779335089: TLS support available.
+1779335089: TLS-PSK support available.
+1779335089: Websockets support available.
+1779335089: Opening ipv4 listen socket on port 1883.
+1779335089: mosquitto version 2.1.2 running
+1779335096: mosquitto version 2.1.2 terminating
+1779335096: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1779335097: mosquitto version 2.1.2 starting
+1779335097: Config loaded from /mosquitto/config/mosquitto.conf.
+1779335097: Bridge support available.
+1779335097: Persistence support available.
+1779335097: TLS support available.
+1779335097: TLS-PSK support available.
+1779335097: Websockets support available.
+1779335097: Opening ipv4 listen socket on port 1883.
+1779335097: mosquitto version 2.1.2 running
+1779335420: New connection from 172.19.0.1:52144 on port 1883.
+1779335420: New client connected from 172.19.0.1:52144 as auto-8DAD1CCB-CF0A-B84D-F4CC-83239B78C6CF (p4, c1, k60, u'mqtt_user').
+1779335480: Client auto-8DAD1CCB-CF0A-B84D-F4CC-83239B78C6CF [172.19.0.1:52144] disconnected.
+1779335621: New connection from 172.19.0.1:39134 on port 1883.
+1779335621: New client connected from 172.19.0.1:39134 as auto-0248DC27-4054-2BA2-AE52-612ED17A69E6 (p4, c1, k60, u'mqtt_user').
+1779335640: Client auto-0248DC27-4054-2BA2-AE52-612ED17A69E6 [172.19.0.1:39134] disconnected.
+1779335657: New connection from 172.19.0.1:58074 on port 1883.
+1779335657: New client connected from 172.19.0.1:58074 as auto-210AAAF1-C21E-9AC6-C739-B68C4B292535 (p4, c1, k60, u'mqtt_user').
+1779336508: Client auto-210AAAF1-C21E-9AC6-C739-B68C4B292535 [172.19.0.1:58074] disconnected.
+1779336515: New connection from 172.19.0.1:32828 on port 1883.
+1779336515: New client connected from 172.19.0.1:32828 as auto-7326A1E0-2186-EA92-97C9-D3543501CB61 (p4, c1, k60, u'mqtt_user').
+1779336521: Client auto-7326A1E0-2186-EA92-97C9-D3543501CB61 [172.19.0.1:32828] disconnected.
+1779336564: New connection from 172.19.0.1:45200 on port 1883.
+1779336564: New client connected from 172.19.0.1:45200 as auto-7BF934A5-9157-60CA-0B70-688C12C6D290 (p4, c1, k60, u'mqtt_user').
+1779336570: Client auto-7BF934A5-9157-60CA-0B70-688C12C6D290 [172.19.0.1:45200] disconnected.
+1779336878: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1779337236: mosquitto version 2.1.2 starting
+1779337236: Config loaded from /mosquitto/config/mosquitto.conf.
+1779337236: Bridge support available.
+1779337236: Persistence support available.
+1779337236: TLS support available.
+1779337236: TLS-PSK support available.
+1779337236: Websockets support available.
+1779337236: Opening ipv4 listen socket on port 1883.
+1779337236: mosquitto version 2.1.2 running
+1779337314: New connection from 172.19.0.1:51618 on port 1883.
+1779337314: New client connected from 172.19.0.1:51618 as auto-68A16F55-BD51-038C-6713-41CC3938018C (p4, c1, k60, u'mqtt_user').
+1779337592: Client auto-68A16F55-BD51-038C-6713-41CC3938018C [172.19.0.1:51618] disconnected.
+1779337621: New connection from 172.19.0.1:36318 on port 1883.
+1779337621: New client connected from 172.19.0.1:36318 as auto-94C8AF3D-F4E3-0B53-6667-F88F5366E964 (p4, c1, k60, u'mqtt_user').
+1779337891: Client auto-94C8AF3D-F4E3-0B53-6667-F88F5366E964 [172.19.0.1:36318] disconnected.
+1779337899: New connection from 172.19.0.1:37012 on port 1883.
+1779337899: New client connected from 172.19.0.1:37012 as auto-F5FFB141-5B60-5F77-7892-0DD195FA95DD (p4, c1, k60, u'mqtt_user').
+1779337979: Client auto-F5FFB141-5B60-5F77-7892-0DD195FA95DD [172.19.0.1:37012] disconnected.
+1779338337: New connection from 172.19.0.1:42460 on port 1883.
+1779338337: New client connected from 172.19.0.1:42460 as auto-4C6C5737-A8B1-2D37-FD03-E3F4034D0B80 (p4, c1, k60, u'mqtt_user').
+1779338402: Client auto-4C6C5737-A8B1-2D37-FD03-E3F4034D0B80 [172.19.0.1:42460] disconnected.
+1779338414: New connection from 172.19.0.1:39882 on port 1883.
+1779338414: New client connected from 172.19.0.1:39882 as auto-E208AD93-719E-1821-45B1-967E5A14BA08 (p4, c1, k60, u'mqtt_user').
+1779338829: Client auto-E208AD93-719E-1821-45B1-967E5A14BA08 [172.19.0.1:39882] disconnected.
+1779338922: New connection from 172.19.0.1:36584 on port 1883.
+1779338922: New client connected from 172.19.0.1:36584 as auto-476ED1EF-77B8-E8D0-7ACA-AE01CB9A4259 (p4, c1, k60, u'mqtt_user').
+1779339016: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1779339414: Client auto-476ED1EF-77B8-E8D0-7ACA-AE01CB9A4259 [172.19.0.1:36584] disconnected.
+1779339427: New connection from 172.19.0.1:49460 on port 1883.
+1779339427: New client connected from 172.19.0.1:49460 as auto-3AFEBBEB-1241-9E78-5030-5B89A0E32983 (p4, c1, k60, u'mqtt_user').
+1779339669: New connection from 127.0.0.1:33062 on port 1883.
+1779339669: New client connected from 127.0.0.1:33062 as auto-454E4F25-4B07-2633-4823-EAE328939831 (p4, c1, k60).
+1779340260: New connection from 172.19.0.1:51374 on port 1883.
+1779340260: New client connected from 172.19.0.1:51374 as esp32_led_buzzer (p4, c1, k15).
+1779340327: New connection from 172.19.0.1:34094 on port 1883.
+1779340327: Client esp32_led_buzzer [172.19.0.1:51374] disconnected: session taken over.
+1779340327: New client connected from 172.19.0.1:34094 as esp32_led_buzzer (p4, c1, k15).
+1779340567: Client auto-3AFEBBEB-1241-9E78-5030-5B89A0E32983 [172.19.0.1:49460] disconnected.
+1779340706: New connection from 172.19.0.1:51800 on port 1883.
+1779340706: New client connected from 172.19.0.1:51800 as auto-CA38992C-69BC-399E-E482-2E21E7583A06 (p4, c1, k60, u'mqtt_user').
+1779340814: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1779341380: New connection from 127.0.0.1:59312 on port 1883.
+1779341380: New client connected from 127.0.0.1:59312 as auto-EB65D40C-564C-1CBF-8E50-F27B75909B5F (p4, c1, k60).
+1779341583: Client auto-CA38992C-69BC-399E-E482-2E21E7583A06 [172.19.0.1:51800] disconnected.
+1779341595: New connection from 172.19.0.1:50276 on port 1883.
+1779341595: New client connected from 172.19.0.1:50276 as auto-5ADECC1E-693A-1E8C-EFC7-4D3DDD60FA29 (p4, c1, k60, u'mqtt_user').
+1779341893: Client esp32_led_buzzer [172.19.0.1:34094] disconnected: exceeded timeout.
+1779341912: New connection from 172.19.0.1:37392 on port 1883.
+1779341932: New client connected from 172.19.0.1:37392 as esp32_led_buzzer (p4, c1, k15).
+1779341933: Client esp32_led_buzzer [172.19.0.1:37392] disconnected: connection closed by client.
+1779341934: New connection from 172.19.0.1:47110 on port 1883.
+1779341934: New connection from 172.19.0.1:47112 on port 1883.
+1779341936: New client connected from 172.19.0.1:47110 as esp32_led_buzzer (p4, c1, k15).
+1779341944: Client esp32_led_buzzer [172.19.0.1:47110] disconnected: connection closed by client.
+1779341956: New client connected from 172.19.0.1:47112 as esp32_led_buzzer (p4, c1, k15).
+1779341979: Client esp32_led_buzzer [172.19.0.1:47112] disconnected: exceeded timeout.
+1779341999: New connection from 172.19.0.1:48652 on port 1883.
+1779341999: New connection from 172.19.0.1:48650 on port 1883.
+1779341999: New connection from 172.19.0.1:48660 on port 1883.
+1779341999: New client connected from 172.19.0.1:48650 as esp32_led_buzzer (p4, c1, k15).
+1779341999: Client esp32_led_buzzer [172.19.0.1:48650] disconnected: connection closed by client.
+1779341999: New client connected from 172.19.0.1:48660 as esp32_led_buzzer (p4, c1, k15).
+1779341999: Client esp32_led_buzzer [172.19.0.1:48660] disconnected: connection closed by client.
+1779341999: New client connected from 172.19.0.1:48652 as esp32_led_buzzer (p4, c1, k15).
+1779341999: Client esp32_led_buzzer [172.19.0.1:48652] disconnected: connection closed by client.
+1779342000: New connection from 172.19.0.1:48672 on port 1883.
+1779342000: New client connected from 172.19.0.1:48672 as esp32_led_buzzer (p4, c1, k15).
+1779342169: Client auto-5ADECC1E-693A-1E8C-EFC7-4D3DDD60FA29 [172.19.0.1:50276] disconnected.
+1779342176: New connection from 172.19.0.1:46582 on port 1883.
+1779342176: New client connected from 172.19.0.1:46582 as auto-209D5F71-407C-C01C-1D9A-C44AAABF077A (p4, c1, k60, u'mqtt_user').
+1779342610: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1779342942: Client auto-209D5F71-407C-C01C-1D9A-C44AAABF077A [172.19.0.1:46582] disconnected.
+1779342952: New connection from 172.19.0.1:34030 on port 1883.
+1779342952: New client connected from 172.19.0.1:34030 as auto-6FA096B1-BFC4-D89C-57BA-FC75D4551735 (p4, c1, k60, u'mqtt_user').
+1779342954: Client esp32_led_buzzer [172.19.0.1:48672] disconnected: exceeded timeout.
+1779343002: New connection from 172.19.0.1:54772 on port 1883.
+1779343003: New client connected from 172.19.0.1:54772 as esp32_led_buzzer (p4, c1, k15).
+1779343003: New connection from 172.19.0.1:44438 on port 1883.
+1779343003: New connection from 172.19.0.1:44452 on port 1883.
+1779343003: Client esp32_led_buzzer [172.19.0.1:54772] disconnected: connection closed by client.
+1779343003: New client connected from 172.19.0.1:44452 as esp32_led_buzzer (p4, c1, k15).
+1779343003: Client esp32_led_buzzer [172.19.0.1:44452] disconnected: session taken over.
+1779343003: New client connected from 172.19.0.1:44438 as esp32_led_buzzer (p4, c1, k15).
+1779343091: Client auto-6FA096B1-BFC4-D89C-57BA-FC75D4551735 [172.19.0.1:34030] disconnected.
+1779343100: New connection from 172.19.0.1:58648 on port 1883.
+1779343100: New client connected from 172.19.0.1:58648 as auto-E4C84089-E808-F527-9C9C-8403EFBA368A (p4, c1, k60, u'mqtt_user').
+1779343353: Client esp32_led_buzzer [172.19.0.1:44438] disconnected: connection closed by client.
+1779343360: New connection from 172.19.0.1:43186 on port 1883.
+1779343380: New client connected from 172.19.0.1:43186 as esp32_led_buzzer (p4, c1, k15).
+1779343380: Client esp32_led_buzzer [172.19.0.1:43186] disconnected: connection closed by client.
+1779343380: New connection from 172.19.0.1:39634 on port 1883.
+1779343381: New client connected from 172.19.0.1:39634 as esp32_led_buzzer (p4, c1, k15).
+1779343381: Client esp32_led_buzzer [172.19.0.1:39634] disconnected: connection closed by client.
+1779343382: New connection from 172.19.0.1:39650 on port 1883.
+1779343382: New client connected from 172.19.0.1:39650 as esp32_led_buzzer (p4, c1, k15).
+1779343464: Client esp32_led_buzzer [172.19.0.1:39650] disconnected: exceeded timeout.
+1779343845: Client auto-E4C84089-E808-F527-9C9C-8403EFBA368A [172.19.0.1:58648] disconnected: connection closed by client.

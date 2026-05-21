@@ -30,7 +30,6 @@ logger = logging.getLogger(__name__)
 
 from app.core.exceptions import register_exception_handlers
 from app.services.fcm_service import FCMService
-# ❌ Bỏ import MQTTService — duplicate với mqtt_client, gây 2 connection
 from app.models.zone import Zone
 from app.models.camera import Camera
 from app.services.ai_worker import AIWorker
@@ -67,19 +66,19 @@ async def lifespan(app: FastAPI):
 
     # ── MQTT ──────────────────────────────────────────────────────────
     # ✅ Connect trước, chờ connected (có timeout bên trong), rồi mới subscribe
-    try:
-        connected = mqtt_client.connect()
-        if connected:
-            await mqtt_listener.init_listeners()
-            print("✓ MQTT initialized successfully")
-        else:
-            logger.warning("⚠️  MQTT broker không khả dụng, bỏ qua listeners")
-    except Exception as e:
-        print(f"✗ MQTT initialization failed: {str(e)}")
+    # try:
+    #     connected = mqtt_client.connect()
+    #     if connected:
+    #         await mqtt_listener.init_listeners()
+    #         print("✓ MQTT initialized successfully")
+    #     else:
+    #         logger.warning("⚠️  MQTT broker không khả dụng, bỏ qua listeners")
+    # except Exception as e:
+    #     print(f"✗ MQTT initialization failed: {str(e)}")
 
     # 2. Khởi tạo FCM & Hardware Services
     FCMService.initialize()
-    MQTTService.initialize()
+    # MQTTService.initialize()
 
     # 3. Khởi tạo AI Detector
     app.state.detector = IntrusionDetector(
@@ -91,7 +90,7 @@ async def lifespan(app: FastAPI):
     # 4. Phục hồi vùng Zone & Bật AI Worker chạy ngầm
     db = SessionLocal()
     try:
-        active_zone = db.query(Zone).filter(Zone.is_active == True).first()
+        active_zone = db.query(Zone).filter(Zone.is_active == True).order_by(Zone.id.desc()).first()
         if active_zone:
             coords_norm = [(float(c["x"]), float(c["y"])) for c in active_zone.coordinates]
             app.state.detector.update_roi(coords_norm)
@@ -101,13 +100,17 @@ async def lifespan(app: FastAPI):
             print("✓ Default ROI applied")
 
         camera = db.query(Camera).filter(Camera.is_active == True).first()
-        rtsp_url = camera.rtsp_url if camera else f"rtsp://{settings.MEDIAMTX_HOST}:8554/camera_01"
         cam_id = camera.id if camera else 1
+        
+        # THAY ĐỔI Ở ĐÂY: 
+        # Bắt OpenCV phải đọc từ MediaMTX (localhost:8554) thay vì đọc từ Camera.
+        # Dựa vào file mediamtx.yml của bạn, luồng được đặt tên là "camera_01"
+        rtsp_url = "rtsp://127.0.0.1:8554/camera_01"
         
         # BẬT AI WORKER
         app.state.ai_worker = AIWorker(
             detector=app.state.detector,
-            rtsp_url=rtsp_url,
+            rtsp_url=rtsp_url, # AI bây giờ đọc từ localhost
             camera_id=cam_id
         )
         app.state.ai_worker.start()
@@ -122,10 +125,10 @@ async def lifespan(app: FastAPI):
 
     # 5. Dọn dẹp khi tắt server
     print("🛑 Shutting down AI_ROI_CAMERA Server...")
-    try:
-        mqtt_client.disconnect()
-    except Exception:
-        pass
+    # try:
+    #     mqtt_client.disconnect()
+    # except Exception:
+    #     pass
     
     if hasattr(app.state, 'ai_worker'):
         app.state.ai_worker.stop()

@@ -24,7 +24,7 @@ def zone_to_dict(z: Zone) -> dict:
 
 def push_roi_to_detector(request: Request, db: Session):
     """Lấy tất cả zone active và cập nhật ROI chuẩn hóa lên detector"""
-    active_zone = db.query(Zone).filter(Zone.is_active == True).first()
+    active_zone = db.query(Zone).filter(Zone.is_active == True).order_by(Zone.id.desc()).first()
     if not active_zone:
         return
 

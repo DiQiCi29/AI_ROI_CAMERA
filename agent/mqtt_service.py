@@ -15,6 +15,7 @@ Cách dùng:
 """
 
 import json
+import os
 import threading
 import time
 from datetime import datetime
@@ -40,12 +41,12 @@ class MQTTService:
     _on_message_callback: Optional[Callable] = None
 
     # MQTT broker config
-    MQTT_HOST = "localhost"  # Hoặc IP của docker host
-    MQTT_PORT = 1883
+    MQTT_HOST = os.getenv("MQTT_BROKER_HOST", "127.0.0.1")
+    MQTT_PORT = int(os.getenv("MQTT_BROKER_PORT", 1883))
     MQTT_KEEPALIVE = 60
 
     # Topics
-    STATUS_TOPIC = "devices/+/status"       # ESP gửi status lên
+    STATUS_TOPIC = "devices/#"               # Subscribe tất cả dưới devices/       # ESP gửi status lên
     COMMAND_TOPIC_PREFIX = "devices/{}/command"  # Server gửi lệnh xuống
 
     @classmethod

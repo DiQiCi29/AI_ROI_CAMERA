@@ -1,12 +1,4 @@
-"""
-MQTT Listener Service - Backend ghi nhận MQTT events
 
-Mục đích:
-  - Subscribe detector alerts (alerts/camera_*/intrusion)
-  - Subscribe device status (home/sensors/+, home/devices/+)
-  - Save events to database
-  - Broadcast to WebSocket clients
-"""
 
 import logging
 from sqlalchemy.orm import Session
@@ -27,13 +19,15 @@ class MqttListener:
         self.db_session = None
     
     async def init_listeners(self):
-        """Initialize MQTT listeners - gọi khi FastAPI startup"""
         try:
-            # Set callback handler
             mqtt_client.set_on_message_callback(self.on_mqtt_message)
             
-            # Subscribe tới topics
-            mqtt_client.subscribe("alerts/camera_+/intrusion", qos=1)
+            # ✅ Kiểm tra connected
+            if not mqtt_client.is_connected():
+                logger.error("✗ MQTT: Client chưa kết nối, không thể subscribe")
+                return
+            
+            mqtt_client.subscribe("alerts/+/intrusion", qos=1)
             mqtt_client.subscribe("home/sensors/+", qos=1)
             mqtt_client.subscribe("home/devices/+", qos=1)
             mqtt_client.subscribe("system/status", qos=1)
@@ -51,10 +45,8 @@ class MqttListener:
             payload: Dict đã parse từ JSON
         """
         try:
-            logger.debug(f"📨 MQTT Handler: {topic}")
-            
-            # Route to appropriate handler
-            if topic.startswith("alerts/camera_"):
+            # ✅ Vẫn match đúng vì topic thực tế từ ESP vẫn là alerts/camera_1/intrusion
+            if topic.startswith("alerts/") and topic.endswith("/intrusion"):
                 self._handle_detector_alert(topic, payload)
             elif topic.startswith("home/sensors/"):
                 self._handle_sensor_update(topic, payload)
@@ -62,7 +54,6 @@ class MqttListener:
                 self._handle_device_update(topic, payload)
             elif topic == "system/status":
                 self._handle_system_status(topic, payload)
-                
         except Exception as e:
             logger.error(f"✗ Error processing MQTT message: {str(e)}")
     

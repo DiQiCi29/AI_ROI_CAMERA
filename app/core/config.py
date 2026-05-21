@@ -1,5 +1,4 @@
 from pydantic_settings import BaseSettings
-import secrets
 
 class Settings(BaseSettings):
     APP_NAME: str = "AI_ROI_CAMERA"

@@ -10,9 +10,11 @@ hls: yes
 webrtc: yes
 api: yes
 
+# Cấu hình path mặc định cho camera_01 (hardcoded)
+# Các camera khác sẽ được add qua API (setup_camera.py)
 paths:
   camera_01:
-    source: rtsp://35639463:123@192.168.0.3:554/onvif1
+    source: rtsp://35639463:123@192.168.0.2:554/onvif1
     sourceOnDemand: yes
     sourceOnDemandStartTimeout: 15s
     sourceOnDemandCloseAfter: 60s

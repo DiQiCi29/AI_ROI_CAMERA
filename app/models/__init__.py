@@ -7,3 +7,4 @@ from app.models.alert import Alert
 from app.models.intrusion_log import IntrusionLog
 from app.models.device import Device
 from app.models.notification_log import NotificationLog
+from app.models.token_blacklist import TokenBlacklist

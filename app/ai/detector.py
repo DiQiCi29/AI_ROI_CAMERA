@@ -43,54 +43,35 @@ class IntrusionDetector:
         mqtt_client: Optional[object] = None,
         camera_id: int = 1
     ):
-        """
-        Khởi tạo model - chỉ gọi 1 lần duy nhất khi server start.
-
-        Args:
-            model_path: Đường dẫn tới file weights YOLO (.pt)
-                        Mặc định: cùng thư mục với detector.py
-            confidence: Ngưỡng confidence để nhận diện người (0.0 - 1.0)
-            mqtt_client: MQTT client instance (Optional)
-            camera_id: ID của camera (dùng cho MQTT topic)
-        """
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.model = YOLO(model_path).to(self.device)
         self.confidence = confidence
-        self.roi_polygon = None
-        self._lock = threading.Lock()  # Thread-safe khi update ROI
         
-        # MQTT support
+        # Đổi thành lưu mảng tọa độ chuẩn hóa thay vì Polygon cứng
+        self.roi_normalized = None 
+        self._lock = threading.Lock()
+        
         self.mqtt_client = mqtt_client
         self.camera_id = camera_id
         self.last_alert_time = None
-        self.alert_cooldown = 2  # Chỉ publish alert mỗi 2 giây
-        
+        self.alert_cooldown = 2
+        self.latest_frame = None
+
         print(f"[Detector] Running on : {self.device}")
-        print(f"[Detector] Model path : {model_path}")
-        print(f"[Detector] Confidence : {confidence}")
-        print(f"[Detector] Camera ID  : {camera_id}")
-        if self.mqtt_client:
-            print(f"[Detector] MQTT       : Enabled")
+        
 
-    def update_roi(self, roi_points: list) -> bool:
+    def update_roi(self, roi_points_norm: list) -> bool:
         """
-        Cập nhật vùng cấm ROI - thread-safe, gọi bất cứ lúc nào.
-
-        Args:
-            roi_points: List tọa độ đa giác [(x1,y1), (x2,y2), ...]
-                        Tối thiểu 3 điểm, không cần đóng lại điểm đầu.
-
-        Returns:
-            True nếu update thành công, False nếu thất bại.
+        Cập nhật vùng cấm ROI (Tọa độ chuẩn hóa 0.0 - 1.0)
+        Ví dụ: [(0.1, 0.2), (0.9, 0.2), (0.9, 0.8), (0.1, 0.8)]
         """
-        if len(roi_points) < 3:
-            print("[Detector] ROI cần ít nhất 3 điểm!")
+        if len(roi_points_norm) < 3:
             return False
 
         with self._lock:
-            self.roi_polygon = Polygon(roi_points)
+            self.roi_normalized = roi_points_norm
 
-        print(f"[Detector] ROI updated: {roi_points}")
+        print(f"[Detector] ROI Normalized updated: {roi_points_norm}")
         return True
 
     def _check_intrusion(self, bbox: list) -> bool:
@@ -113,81 +94,50 @@ class IntrusionDetector:
         return roi.contains(foot_point)
 
     def process_frame(self, frame: np.ndarray) -> dict:
-        """
-        Xử lý 1 frame ảnh từ camera với optimization ROI-based inference.
-
-        Args:
-            frame: numpy array ảnh (BGR format từ OpenCV)
-
-        Returns:
-            {
-                "alert"    : True nếu có người xâm nhập, False nếu không,
-                "intruders": [
-                    {
-                        "bbox"      : [x1, y1, x2, y2],
-                        "confidence": 0.91
-                    },
-                    ...
-                ],
-                "timestamp": "2026-05-11T14:00:00.123456"
-            }
-        """
+        """Xử lý frame và trả về BBox chuẩn hóa"""
+        height, width = frame.shape[:2]
+        self.latest_frame = frame.copy()
+        # 1. Tạo Polygon theo kích thước pixel thực tế của frame hiện tại
         with self._lock:
-            roi = self.roi_polygon
+            if self.roi_normalized:
+                pixel_points = [(int(p[0] * width), int(p[1] * height)) for p in self.roi_normalized]
+                self.roi_polygon = Polygon(pixel_points)
+            else:
+                self.roi_polygon = None
 
-        # ROI-based inference optimization
-        if roi is not None:
-            # Get ROI bounding box for cropping
-            roi_coords = np.array(list(roi.exterior.coords), np.int32)
-            x, y, w, h = cv2.boundingRect(roi_coords)
-            
-            # Crop frame to ROI area for faster inference
-            roi_frame = frame[y:y+h, x:x+w]
-            
-            # Run YOLO only on ROI area
-            results = self.model(
-                roi_frame,
-                classes=[0],        # Class 0 = person (COCO dataset)
-                conf=self.confidence,
-                device=self.device,
-                verbose=False
-            )
-            
-            # Adjust bounding boxes back to original coordinates
-            intruders = []
-            for result in results:
-                for box in result.boxes:
-                    bbox = box.xyxy[0].tolist()  # [x1, y1, x2, y2]
-                    # Convert back to original frame coordinates
-                    bbox = [bbox[0] + x, bbox[1] + y, bbox[2] + x, bbox[3] + y]
-                    conf = float(box.conf[0])
+        # 2. Nhận diện (Để tránh lỗi méo ảnh, ta nhận diện toàn khung hình)
+        results = self.model(
+            frame,
+            classes=[0],        # Chỉ nhận diện người (Class 0)
+            conf=self.confidence,
+            device=self.device,
+            verbose=False
+        )
 
-                    if self._check_intrusion(bbox):
-                        intruders.append({
-                            "bbox"      : bbox,
-                            "confidence": round(conf, 2)
-                        })
-        else:
-            # Fallback to full frame inference if no ROI
-            results = self.model(
-                frame,
-                classes=[0],        # Class 0 = person (COCO dataset)
-                conf=self.confidence,
-                device=self.device,
-                verbose=False
-            )
+        intruders = []
+        total_people_found = 0 # Biến đếm debug
 
-            intruders = []
-            for result in results:
-                for box in result.boxes:
-                    bbox = box.xyxy[0].tolist()  # [x1, y1, x2, y2]
-                    conf = float(box.conf[0])
+        for result in results:
+            for box in result.boxes:
+                total_people_found += 1 # Cộng dồn số người YOLO thấy được
+                bbox = box.xyxy[0].tolist()  
+                conf = float(box.conf[0])
 
-                    if self._check_intrusion(bbox):
-                        intruders.append({
-                            "bbox"      : bbox,
-                            "confidence": round(conf, 2)
-                        })
+                if self._check_intrusion(bbox):
+                    # 3. CHUẨN HÓA BBOX TRƯỚC KHI GỬI VỀ APP
+                    bbox_norm = [
+                        round(bbox[0] / width, 4),
+                        round(bbox[1] / height, 4),
+                        round(bbox[2] / width, 4),
+                        round(bbox[3] / height, 4)
+                    ]
+                    intruders.append({
+                        "bbox": bbox_norm,
+                        "confidence": round(conf, 2)
+                    })
+
+        # --- THÊM DÒNG LOG NÀY ĐỂ DEBUG ---
+        # print(f"[Detector] Frame size: {width}x{height} | YOLO found total: {total_people_found} people | Inside ROI: {len(intruders)}")
 
         output = {
             "alert"    : len(intruders) > 0,
@@ -195,7 +145,6 @@ class IntrusionDetector:
             "timestamp": datetime.now().isoformat()
         }
         
-        # Publish alert via MQTT nếu có intrusion detected
         if output["alert"] and self.mqtt_client:
             self._publish_alert_mqtt(output)
         

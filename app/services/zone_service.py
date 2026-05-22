@@ -139,22 +139,10 @@ class ZoneService:
 
     @staticmethod
     def get_zone_roi_pixels(zone_id: int, db: Session) -> Tuple[List[Tuple[int, int]], Tuple[int, int]]:
-        """
-        Convert zone coordinates from % to pixels for AI processing
-        
-        Args:
-            zone_id: Zone ID
-            db: Database session
-            
-        Returns:
-            Tuple of (pixel_coordinates, frame_size)
-            Example: ([(640, 360), (1280, 360), (1280, 720), (640, 720)], (1280, 720))
-        """
         zone = db.query(Zone).filter(Zone.id == zone_id).first()
         if not zone:
             return None
         
-        # Standard frame size from YOLOv8 processing
         frame_width, frame_height = 1280, 720
         
         try:
@@ -162,8 +150,9 @@ class ZoneService:
             
             pixel_coords = []
             for coord in coords:
-                pixel_x = int((coord['x'] / 100.0) * frame_width)
-                pixel_y = int((coord['y'] / 100.0) * frame_height)
+                # Không cần chia cho 100.0 nữa, chỉ cần nhân trực tiếp với tỉ lệ
+                pixel_x = int(coord['x'] * frame_width)
+                pixel_y = int(coord['y'] * frame_height)
                 pixel_coords.append((pixel_x, pixel_y))
             
             return pixel_coords, (frame_width, frame_height)
@@ -180,37 +169,24 @@ class ZoneService:
 
     @staticmethod
     def validate_coordinates(coordinates: List[Dict[str, float]]) -> bool:
-        """
-        Validate zone coordinates
-        
-        Args:
-            coordinates: List of {x, y} coordinates as percentages (0-100)
-            
-        Returns:
-            True if valid, False otherwise
-        """
         if not coordinates or len(coordinates) < 3:
             return False
         
         for coord in coordinates:
-            if not (0 <= coord.get('x', -1) <= 100 and 0 <= coord.get('y', -1) <= 100):
+            # Đổi khoảng kiểm tra thành 0.0 đến 1.0
+            if not (0.0 <= coord.get('x', -1.0) <= 1.0 and 0.0 <= coord.get('y', -1.0) <= 1.0):
                 return False
         
         return True
 
     @staticmethod
     def get_default_roi() -> List[Dict[str, float]]:
-        """
-        Get default ROI (full frame)
-        
-        Returns:
-            Full-frame ROI coordinates
-        """
+        # Đổi tọa độ mặc định thành chuẩn hóa
         return [
-            {"x": 0, "y": 0},
-            {"x": 100, "y": 0},
-            {"x": 100, "y": 100},
-            {"x": 0, "y": 100}
+            {"x": 0.0, "y": 0.0},
+            {"x": 1.0, "y": 0.0},
+            {"x": 1.0, "y": 1.0},
+            {"x": 0.0, "y": 1.0}
         ]
 
     @staticmethod

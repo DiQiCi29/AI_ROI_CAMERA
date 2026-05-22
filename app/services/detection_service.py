@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.models.alert import Alert
 from app.models.zone import Zone
 from app.models.device import Device, DeviceType
-from app.api.v1.routes.websocket import broadcast_event
+from app.api.v1.routes.websocket import broadcast, broadcast_event
 
 
 async def on_intrusion_detected(alert: Alert, db: Session):
@@ -27,7 +27,7 @@ async def on_intrusion_detected(alert: Alert, db: Session):
 
         object_count = len(boxes) if boxes else 1
 
-        await broadcast_event("intrusion_detected", {
+        await broadcast("intrusion_detected", {
             "alert_id": str(alert.id),
             "zone_id": str(alert.zone_id) if alert.zone_id is not None else None,
             "zone_name": zone_name,

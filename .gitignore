@@ -1,19 +1,62 @@
 # Python
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
-agent/*.pt
-# Virtual environment
-aiot_env/
+*.pyc
+*.pdb
+
+# Virtual environments
+.venv/
 venv/
 env/
+aiot_env/
+ENV/
+
+# Environment files
 .env
-# VS Code
+.env.local
+.env.*
+!.env.example
+
+# Model weights and artifact binaries
+*.pt
+*.pth
+*.onnx
+*.h5
+*.ckpt
+
+# IDE and editor
 .vscode/
+.idea/
+*.iml
+
+# Flutter / Dart
+zone_moniter_app/.dart_tool/
+zone_moniter_app/.flutter-plugins-dependencies
+zone_moniter_app/.flutter-plugins
+zone_moniter_app/.packages
+zone_moniter_app/.metadata
+zone_moniter_app/build/
+zone_moniter_app/coverage/
+zone_moniter_app/android/.gradle/
+zone_moniter_app/android/app/build/
+zone_moniter_app/android/local.properties
+zone_moniter_app/ios/Pods/
+zone_moniter_app/ios/Flutter/Flutter.framework
+zone_moniter_app/ios/Flutter/Flutter.podspec
+zone_moniter_app/ios/.symlinks/
+zone_moniter_app/ios/ServiceDefinitions.json
+zone_moniter_app/ios/Runner/GeneratedPluginRegistrant.*
+
+# Docker / runtime data
+mosquitto/data/
 
 # Temp files
 tempCodeRunnerFile.python
+*.log
+*.tmp
+*.temp
 
 # OS
 .DS_Store

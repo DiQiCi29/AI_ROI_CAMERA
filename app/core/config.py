@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     DB_HOST: str = "localhost"
     DB_PORT: int = 3306
     DB_USER: str = "root"
-    DB_PASSWORD: str = "duy273224605"
+    DB_PASSWORD: str = "258463"
     DB_NAME: str = "ai_roi_camera"
 
     # Security
@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     MEDIAMTX_PORT: int = 9997
 
     # MQTT Broker
-    MQTT_HOST: str = "localhost"
+    MQTT_HOST: str = "127.0.0.1"
     MQTT_PORT: int = 1883
     MQTT_USERNAME: str = "mqtt_user"
     MQTT_PASSWORD: str = "mqtt_pass"

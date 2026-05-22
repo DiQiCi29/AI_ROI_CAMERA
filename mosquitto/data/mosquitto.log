@@ -131,3 +131,190 @@
 1779343382: New client connected from 172.19.0.1:39650 as esp32_led_buzzer (p4, c1, k15).
 1779343464: Client esp32_led_buzzer [172.19.0.1:39650] disconnected: exceeded timeout.
 1779343845: Client auto-E4C84089-E808-F527-9C9C-8403EFBA368A [172.19.0.1:58648] disconnected: connection closed by client.
+1779355121: mosquitto version 2.1.2 starting
+1779355121: Config loaded from /mosquitto/config/mosquitto.conf.
+1779355121: Bridge support available.
+1779355121: Persistence support available.
+1779355121: TLS support available.
+1779355121: TLS-PSK support available.
+1779355121: Websockets support available.
+1779355121: Opening ipv4 listen socket on port 1883.
+1779355121: mosquitto version 2.1.2 running
+1779355128: New connection from 172.19.0.1:53542 on port 1883.
+1779355128: New client connected from 172.19.0.1:53542 as esp32_alarm_system (p4, c1, k15).
+1779355271: Client esp32_alarm_system [172.19.0.1:53542] disconnected: exceeded timeout.
+1779355342: New connection from 172.19.0.1:33172 on port 1883.
+1779355343: New client connected from 172.19.0.1:33172 as esp32_alarm_system (p4, c1, k15).
+1779355366: Client esp32_alarm_system [172.19.0.1:33172] disconnected: exceeded timeout.
+1779355371: New connection from 172.19.0.1:59674 on port 1883.
+1779355372: New connection from 172.19.0.1:59678 on port 1883.
+1779355375: New client connected from 172.19.0.1:59674 as esp32_alarm_system (p4, c1, k15).
+1779355375: Client esp32_alarm_system [172.19.0.1:59674] disconnected: connection closed by client.
+1779355385: New client connected from 172.19.0.1:59678 as esp32_alarm_system (p4, c1, k15).
+1779355385: Client esp32_alarm_system [172.19.0.1:59678] disconnected: connection closed by client.
+1779355385: New connection from 172.19.0.1:45910 on port 1883.
+1779355386: New client connected from 172.19.0.1:45910 as esp32_alarm_system (p4, c1, k15).
+1779355409: Client esp32_alarm_system [172.19.0.1:45910] disconnected: exceeded timeout.
+1779355414: New connection from 172.19.0.1:39300 on port 1883.
+1779355414: New client connected from 172.19.0.1:39300 as esp32_alarm_system (p4, c1, k15).
+1779355542: Client esp32_alarm_system [172.19.0.1:39300] disconnected: exceeded timeout.
+1779355626: New connection from 172.19.0.1:37604 on port 1883.
+1779355626: New client connected from 172.19.0.1:37604 as auto-12F17A09-C124-029A-B2C4-8C273644B36E (p4, c1, k60, u'mqtt_user').
+1779355944: Client auto-12F17A09-C124-029A-B2C4-8C273644B36E [172.19.0.1:37604] disconnected.
+1779355956: New connection from 172.19.0.1:56884 on port 1883.
+1779355956: New client connected from 172.19.0.1:56884 as auto-6C5F6FE8-B807-4E32-6560-F7459902C92C (p4, c1, k60, u'mqtt_user').
+1779356099: Client auto-6C5F6FE8-B807-4E32-6560-F7459902C92C [172.19.0.1:56884] disconnected.
+1779356175: New connection from 172.19.0.1:39796 on port 1883.
+1779356175: New connection from 172.19.0.1:39768 on port 1883.
+1779356175: New connection from 172.19.0.1:39770 on port 1883.
+1779356175: New connection from 172.19.0.1:39798 on port 1883.
+1779356175: New connection from 172.19.0.1:39806 on port 1883.
+1779356175: New connection from 172.19.0.1:39808 on port 1883.
+1779356175: New connection from 172.19.0.1:39826 on port 1883.
+1779356175: New connection from 172.19.0.1:39834 on port 1883.
+1779356175: New connection from 172.19.0.1:39860 on port 1883.
+1779356175: New connection from 172.19.0.1:39882 on port 1883.
+1779356175: New connection from 172.19.0.1:39874 on port 1883.
+1779356175: New connection from 172.19.0.1:39846 on port 1883.
+1779356175: New connection from 172.19.0.1:39884 on port 1883.
+1779356175: New connection from 172.19.0.1:39908 on port 1883.
+1779356175: New connection from 172.19.0.1:39906 on port 1883.
+1779356175: New connection from 172.19.0.1:39900 on port 1883.
+1779356175: New connection from 172.19.0.1:39928 on port 1883.
+1779356175: New connection from 172.19.0.1:39914 on port 1883.
+1779356175: New connection from 172.19.0.1:39930 on port 1883.
+1779356175: New connection from 172.19.0.1:39924 on port 1883.
+1779356175: New connection from 172.19.0.1:39954 on port 1883.
+1779356175: New connection from 172.19.0.1:39946 on port 1883.
+1779356175: New connection from 172.19.0.1:39968 on port 1883.
+1779356175: New connection from 172.19.0.1:39956 on port 1883.
+1779356175: New connection from 172.19.0.1:39978 on port 1883.
+1779356175: New connection from 172.19.0.1:39980 on port 1883.
+1779356175: New connection from 172.19.0.1:39990 on port 1883.
+1779356175: New connection from 172.19.0.1:40010 on port 1883.
+1779356175: New connection from 172.19.0.1:40006 on port 1883.
+1779356175: New connection from 172.19.0.1:40026 on port 1883.
+1779356175: New connection from 172.19.0.1:40032 on port 1883.
+1779356175: New connection from 172.19.0.1:40036 on port 1883.
+1779356175: New connection from 172.19.0.1:40052 on port 1883.
+1779356175: New connection from 172.19.0.1:40060 on port 1883.
+1779356175: New connection from 172.19.0.1:40062 on port 1883.
+1779356175: New connection from 172.19.0.1:40074 on port 1883.
+1779356175: New connection from 172.19.0.1:40084 on port 1883.
+1779356175: New connection from 172.19.0.1:40086 on port 1883.
+1779356175: New connection from 172.19.0.1:40090 on port 1883.
+1779356175: New connection from 172.19.0.1:40098 on port 1883.
+1779356175: New client connected from 172.19.0.1:39770 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39770] disconnected: connection closed by client.
+1779356175: New client connected from 172.19.0.1:40086 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:40086] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:40026 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:40026] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39874 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39874] disconnected: connection closed by client.
+1779356175: New client connected from 172.19.0.1:39908 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39908] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39846 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39846] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39798 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39798] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39796 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39796] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39900 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39900] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39808 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39808] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39768 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39768] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39906 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39906] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:40032 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:40032] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39924 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39924] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:40010 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:40010] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39914 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39914] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39928 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39928] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39990 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39990] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39968 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39968] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39930 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39930] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39826 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39826] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:40098 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:40098] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39978 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39978] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39834 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39834] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:40060 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:40060] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:40062 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:40062] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39884 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39884] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39882 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39882] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39946 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39946] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:40090 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:40090] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:40074 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:40074] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39954 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39954] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39860 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39860] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:40036 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:40036] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:40084 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:40084] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:40052 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:40052] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39956 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39956] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39806 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39806] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:39980 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:39980] disconnected: session taken over.
+1779356175: New client connected from 172.19.0.1:40006 as esp32_alarm_system (p4, c1, k15).
+1779356175: Client esp32_alarm_system [172.19.0.1:40006] disconnected: connection closed by client.
+1779356175: New connection from 172.19.0.1:40110 on port 1883.
+1779356175: New client connected from 172.19.0.1:40110 as esp32_alarm_system (p4, c1, k15).
+1779356277: New connection from 172.19.0.1:43394 on port 1883.
+1779356277: New client connected from 172.19.0.1:43394 as auto-4680B8B5-3169-57AF-E892-D6592345AFE3 (p4, c1, k60, u'mqtt_user').
+1779356318: Client esp32_alarm_system [172.19.0.1:40110] disconnected: exceeded timeout.
+1779356346: New connection from 172.19.0.1:54098 on port 1883.
+1779356346: New connection from 172.19.0.1:54100 on port 1883.
+1779356346: New client connected from 172.19.0.1:54100 as esp32_alarm_system (p4, c1, k15).
+1779356346: Client esp32_alarm_system [172.19.0.1:54100] disconnected: session taken over.
+1779356346: New client connected from 172.19.0.1:54098 as esp32_alarm_system (p4, c1, k15).
+1779356409: Client auto-4680B8B5-3169-57AF-E892-D6592345AFE3 [172.19.0.1:43394] disconnected.
+1779356418: New connection from 172.19.0.1:48380 on port 1883.
+1779356418: New client connected from 172.19.0.1:48380 as auto-807B667E-9063-3C30-5094-BCBE55BD6065 (p4, c1, k60, u'mqtt_user').
+1779356656: Client esp32_alarm_system [172.19.0.1:54098] disconnected: exceeded timeout.
+1779356669: New connection from 172.19.0.1:55252 on port 1883.
+1779356693: New client connected from 172.19.0.1:55252 as esp32_alarm_system (p4, c1, k15).
+1779356693: Client esp32_alarm_system [172.19.0.1:55252] disconnected: connection closed by client.
+1779356698: New connection from 172.19.0.1:57276 on port 1883.
+1779356698: New connection from 172.19.0.1:57286 on port 1883.
+1779356700: New client connected from 172.19.0.1:57286 as esp32_alarm_system (p4, c1, k15).
+1779356700: Client esp32_alarm_system [172.19.0.1:57286] disconnected: session taken over.
+1779356700: New client connected from 172.19.0.1:57276 as esp32_alarm_system (p4, c1, k15).
+1779356708: Client esp32_alarm_system [172.19.0.1:57276] disconnected: connection closed by client.
+1779356710: New connection from 172.19.0.1:47462 on port 1883.
+1779356716: New client connected from 172.19.0.1:47462 as esp32_alarm_system (p4, c1, k15).
+1779356723: Client esp32_alarm_system [172.19.0.1:47462] disconnected: connection closed by client.
+1779356724: New connection from 172.19.0.1:51864 on port 1883.
+1779356728: New client connected from 172.19.0.1:51864 as esp32_alarm_system (p4, c1, k15).
+1779356765: Client esp32_alarm_system [172.19.0.1:51864] disconnected: exceeded timeout.
+1779356766: New connection from 172.19.0.1:58902 on port 1883.
+1779356766: New client connected from 172.19.0.1:58902 as esp32_alarm_system (p4, c1, k15).
+1779356920: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1779356969: Client esp32_alarm_system [172.19.0.1:58902] disconnected: exceeded timeout.
+1779357053: Client auto-807B667E-9063-3C30-5094-BCBE55BD6065 [172.19.0.1:48380] disconnected: connection closed by client.

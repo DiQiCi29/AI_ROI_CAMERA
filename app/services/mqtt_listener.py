@@ -17,10 +17,12 @@ class MqttListener:
     
     def __init__(self):
         self.db_session = None
+        self._loop = None  # ✅ Lưu event loop lúc init
     
     async def init_listeners(self):
         try:
             mqtt_client.set_on_message_callback(self.on_mqtt_message)
+            self._loop = asyncio.get_event_loop()
             
             # ✅ Kiểm tra connected
             if not mqtt_client.is_connected():
@@ -58,65 +60,59 @@ class MqttListener:
             logger.error(f"✗ Error processing MQTT message: {str(e)}")
     
     def _handle_detector_alert(self, topic: str, payload: dict):
-        """
-        Xử lý alert từ AI Detector
-        Topic: alerts/camera_{camera_id}/intrusion
-        
-        Payload example:
-        {
-            "camera_id": 1,
-            "detected_at": "2026-05-17T14:00:00.123456",
-            "intruder_count": 2,
-            "intruders": [
-                {"bbox": [100, 200, 300, 400], "confidence": 0.91},
-                {"bbox": [150, 250, 350, 450], "confidence": 0.87}
-            ]
-        }
-        """
         try:
             camera_id = payload.get("camera_id")
             detected_at = payload.get("detected_at")
             intruders = payload.get("intruders", [])
-            
+
             logger.info(f"🚨 INTRUSION ALERT: Camera {camera_id}, {len(intruders)} intruders")
-            
-            # Get database session
+
             db = next(get_db())
-            
-            # Create Alert record
+    
             alert = Alert(
                 camera_id=camera_id,
-                zone_id=None,  # Could be populated if needed
+                zone_id=None,
                 detected_at=detected_at,
-                intruders=intruders,
-                confidence=max([i.get("confidence", 0) for i in intruders], default=0),
-                is_acknowledged=False
+                bounding_boxes=intruders,
+                confidence=max(
+                    [i.get("confidence", 0) for i in intruders],
+                    default=0
+                ),
+                is_acknowledged=0
             )
-            
+
             db.add(alert)
             db.commit()
             db.refresh(alert)
-            
             logger.info(f"✓ Alert saved to DB (ID: {alert.id})")
-            
-            # Broadcast to WebSocket clients (mobile app)
+
+            # ✅ Fix: dùng asyncio.run_coroutine_threadsafe thay vì create_task
             import asyncio
-            asyncio.create_task(broadcast_event(
-                event="intrusion_alert",
-                data={
-                    "alert_id": str(alert.id),
-                    "camera_id": camera_id,
-                    "detected_at": detected_at,
-                    "intruder_count": len(intruders),
-                    "timestamp": datetime.now().isoformat()
-                }
-            ))
-            
+            event_data = {
+                "alert_id": str(alert.id),
+                "camera_id": camera_id,
+                "detected_at": detected_at,
+                "intruder_count": len(intruders),
+                "timestamp": datetime.now().isoformat()
+            }
+
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.run_coroutine_threadsafe(
+                        broadcast_event(event="intrusion_alert", data=event_data),
+                        loop
+                    )
+                else:
+                    logger.warning("⚠️ Event loop không chạy, bỏ qua broadcast")
+            except Exception as ws_err:
+                logger.warning(f"⚠️ Broadcast thất bại (không ảnh hưởng alert): {ws_err}")
+
             db.close()
-            
+
         except Exception as e:
             logger.error(f"✗ Error handling detector alert: {str(e)}")
-    
+            
     def _handle_sensor_update(self, topic: str, payload: dict):
         """
         Xử lý cập nhật sensor từ ESP32

@@ -5,7 +5,6 @@ from app.models.alert import Alert
 from app.models.zone import Zone
 from app.models.device import Device, DeviceType
 from app.api.v1.routes.websocket import broadcast, broadcast_event
-from agent.mqtt_service import MQTTService
 
 
 async def on_intrusion_detected(alert: Alert, db: Session):

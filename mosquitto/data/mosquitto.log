@@ -318,3 +318,21 @@
 1779356920: Saving in-memory database to /mosquitto/data//mosquitto.db.
 1779356969: Client esp32_alarm_system [172.19.0.1:58902] disconnected: exceeded timeout.
 1779357053: Client auto-807B667E-9063-3C30-5094-BCBE55BD6065 [172.19.0.1:48380] disconnected: connection closed by client.
+1779481001: mosquitto version 2.1.2 starting
+1779481001: Config loaded from /mosquitto/config/mosquitto.conf.
+1779481001: Bridge support available.
+1779481001: Persistence support available.
+1779481001: TLS support available.
+1779481001: TLS-PSK support available.
+1779481001: Websockets support available.
+1779481001: Opening ipv4 listen socket on port 1883.
+1779481001: mosquitto version 2.1.2 running
+1779481213: New connection from 172.18.0.1:60142 on port 1883.
+1779481213: New client connected from 172.18.0.1:60142 as auto-DE65421F-F1B3-51AF-9177-4C69EBF0198D (p4, c1, k60, u'mqtt_user').
+1779481525: Client auto-DE65421F-F1B3-51AF-9177-4C69EBF0198D [172.18.0.1:60142] disconnected.
+1779481543: New connection from 172.18.0.1:46478 on port 1883.
+1779481543: New client connected from 172.18.0.1:46478 as esp32_alarm_system (p4, c1, k15).
+1779481570: New connection from 172.18.0.1:50374 on port 1883.
+1779481570: New client connected from 172.18.0.1:50374 as auto-B2E57EF3-2D06-A03B-2996-F8F808F919F0 (p4, c1, k60, u'mqtt_user').
+1779481619: Client esp32_alarm_system [172.18.0.1:46478] disconnected: connection closed by client.
+1779481638: Client auto-B2E57EF3-2D06-A03B-2996-F8F808F919F0 [172.18.0.1:50374] disconnected.

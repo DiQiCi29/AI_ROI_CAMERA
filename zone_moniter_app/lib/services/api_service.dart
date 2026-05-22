@@ -299,6 +299,10 @@ class ApiService {
     await _dio.patch('/alerts/read-all');
   }
 
+  Future<void> dismissAlert(String alertId) async {
+    await _dio.post('/alerts/$alertId/dismiss');
+  }
+
   Future<int> getUnreadCount() async {
     final response = await _dio.get('/alerts/unread-count');
     return _handleResponse(response)['unread_count'] ?? 0;

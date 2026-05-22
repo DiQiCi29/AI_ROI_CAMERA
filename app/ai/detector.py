@@ -149,10 +149,7 @@ class IntrusionDetector:
 
         if output["alert"]:
             if is_monitoring:
-                # Nếu ON: Gửi lệnh MQTT điều khiển còi đèn, bắn WebSocket, gửi FCM hỏa tốc...
-                if self.mqtt_client:
-                    self._publish_alert_mqtt(output)
-                
+
                 # Luồng đẩy FCM khẩn cấp không lưu DB (Xem tiếp ở mục dưới)
                 import asyncio
                 from app.services.detection_service import on_intrusion_detected_fast
@@ -185,70 +182,70 @@ class IntrusionDetector:
         except Exception as e:
             print(f"[Detector] ✗ Error MQTT: {str(e)}")
 
-    def draw_frame(self, frame: np.ndarray, output: dict) -> np.ndarray:
-        """
-        Vẽ annotation lên frame (Dùng để lưu ảnh snapshot lúc có cảnh báo).
-        ĐÃ FIX: Hỗ trợ Đa vùng cấm (Multi-Zones) và sửa lỗi tọa độ.
-        """
-        import cv2
-        frame = frame.copy()
-        fh, fw = frame.shape[:2]
+    # def draw_frame(self, frame: np.ndarray, output: dict) -> np.ndarray:
+    #     """
+    #     Vẽ annotation lên frame (Dùng để lưu ảnh snapshot lúc có cảnh báo).
+    #     ĐÃ FIX: Hỗ trợ Đa vùng cấm (Multi-Zones) và sửa lỗi tọa độ.
+    #     """
+    #     import cv2
+    #     frame = frame.copy()
+    #     fh, fw = frame.shape[:2]
 
-        # ── Vẽ TẤT CẢ các ROI ───────────────────────────────────────────
-        with self._lock:
-            rois = self.multi_roi_polygons
+    #     # ── Vẽ TẤT CẢ các ROI ───────────────────────────────────────────
+    #     with self._lock:
+    #         rois = self.multi_roi_polygons
 
-        if rois:
-            for roi in rois:
-                roi_pts = np.array(list(roi.exterior.coords[:-1]), np.int32)
+    #     if rois:
+    #         for roi in rois:
+    #             roi_pts = np.array(list(roi.exterior.coords[:-1]), np.int32)
 
-                overlay = frame.copy()
-                cv2.fillPoly(overlay, [roi_pts], (0, 255, 0))
-                cv2.addWeighted(overlay, 0.15, frame, 0.85, 0, frame)
+    #             overlay = frame.copy()
+    #             cv2.fillPoly(overlay, [roi_pts], (0, 255, 0))
+    #             cv2.addWeighted(overlay, 0.15, frame, 0.85, 0, frame)
 
-                cv2.polylines(frame, [roi_pts], isClosed=True, color=(0, 255, 0), thickness=2)
+    #             cv2.polylines(frame, [roi_pts], isClosed=True, color=(0, 255, 0), thickness=2)
 
-                cx = int(np.mean([p[0] for p in roi_pts]))
-                cy = int(np.mean([p[1] for p in roi_pts]))
-                cv2.putText(frame, "ROI", (cx - 15, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+    #             cx = int(np.mean([p[0] for p in roi_pts]))
+    #             cy = int(np.mean([p[1] for p in roi_pts]))
+    #             cv2.putText(frame, "ROI", (cx - 15, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
-        # ── Vẽ intruders (chỉ khi có alert) ─────────────────────────────
-        if output["alert"]:
-            for intruder in output["intruders"]:
-                # ĐÃ FIX: Chuyển đổi tọa độ chuẩn hóa về tọa độ pixel
-                bbox_norm = intruder["bbox"]
-                x1 = int(bbox_norm[0] * fw)
-                y1 = int(bbox_norm[1] * fh)
-                x2 = int(bbox_norm[2] * fw)
-                y2 = int(bbox_norm[3] * fh)
+    #     # ── Vẽ intruders (chỉ khi có alert) ─────────────────────────────
+    #     if output["alert"]:
+    #         for intruder in output["intruders"]:
+    #             # ĐÃ FIX: Chuyển đổi tọa độ chuẩn hóa về tọa độ pixel
+    #             bbox_norm = intruder["bbox"]
+    #             x1 = int(bbox_norm[0] * fw)
+    #             y1 = int(bbox_norm[1] * fh)
+    #             x2 = int(bbox_norm[2] * fw)
+    #             y2 = int(bbox_norm[3] * fh)
                 
-                conf = intruder["confidence"]
-                r = 12
+    #             conf = intruder["confidence"]
+    #             r = 12
 
-                # Bounding box bo góc màu đỏ
-                cv2.line(frame, (x1+r, y1), (x2-r, y1), (0,0,220), 2)
-                cv2.line(frame, (x1+r, y2), (x2-r, y2), (0,0,220), 2)
-                cv2.line(frame, (x1, y1+r), (x1, y2-r), (0,0,220), 2)
-                cv2.line(frame, (x2, y1+r), (x2, y2-r), (0,0,220), 2)
-                cv2.ellipse(frame, (x1+r, y1+r), (r,r), 180, 0, 90, (0,0,220), 2)
-                cv2.ellipse(frame, (x2-r, y1+r), (r,r), 270, 0, 90, (0,0,220), 2)
-                cv2.ellipse(frame, (x1+r, y2-r), (r,r),  90, 0, 90, (0,0,220), 2)
-                cv2.ellipse(frame, (x2-r, y2-r), (r,r),   0, 0, 90, (0,0,220), 2)
+    #             # Bounding box bo góc màu đỏ
+    #             cv2.line(frame, (x1+r, y1), (x2-r, y1), (0,0,220), 2)
+    #             cv2.line(frame, (x1+r, y2), (x2-r, y2), (0,0,220), 2)
+    #             cv2.line(frame, (x1, y1+r), (x1, y2-r), (0,0,220), 2)
+    #             cv2.line(frame, (x2, y1+r), (x2, y2-r), (0,0,220), 2)
+    #             cv2.ellipse(frame, (x1+r, y1+r), (r,r), 180, 0, 90, (0,0,220), 2)
+    #             cv2.ellipse(frame, (x2-r, y1+r), (r,r), 270, 0, 90, (0,0,220), 2)
+    #             cv2.ellipse(frame, (x1+r, y2-r), (r,r),  90, 0, 90, (0,0,220), 2)
+    #             cv2.ellipse(frame, (x2-r, y2-r), (r,r),   0, 0, 90, (0,0,220), 2)
 
-                # Label có nền
-                label = f"INTRUDER {conf}"
-                (w, h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 1)
-                cv2.rectangle(frame, (x1, y1-h-6), (x1+w+6, y1+2), (0,0,220), -1)
-                cv2.putText(frame, label, (x1+3, y1-3), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255,255,255), 1)
+    #             # Label có nền
+    #             label = f"INTRUDER {conf}"
+    #             (w, h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.55, 1)
+    #             cv2.rectangle(frame, (x1, y1-h-6), (x1+w+6, y1+2), (0,0,220), -1)
+    #             cv2.putText(frame, label, (x1+3, y1-3), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255,255,255), 1)
 
-                # Foot point (Dấu chấm ở chân)
-                cv2.circle(frame, ((x1+x2)//2, y2), 5, (0,0,220), -1)
+    #             # Foot point (Dấu chấm ở chân)
+    #             cv2.circle(frame, ((x1+x2)//2, y2), 5, (0,0,220), -1)
 
-            # Alert banner
-            overlay = frame.copy()
-            cv2.rectangle(overlay, (0, 0), (fw, 50), (0,0,180), -1)
-            cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
-            cv2.putText(frame, "!  INTRUSION DETECTED", (20, 35),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255,255,255), 2)
+    #         # Alert banner
+    #         overlay = frame.copy()
+    #         cv2.rectangle(overlay, (0, 0), (fw, 50), (0,0,180), -1)
+    #         cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
+    #         cv2.putText(frame, "!  INTRUSION DETECTED", (20, 35),
+    #                     cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255,255,255), 2)
 
-        return frame
+    #     return frame

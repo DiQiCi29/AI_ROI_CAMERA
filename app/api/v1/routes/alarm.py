@@ -33,7 +33,7 @@ def _check_mqtt():
 @router.post("/trigger")
 def trigger_alarm(
     body: AlertTriggerRequest,
-    current_user: User = Depends(get_current_user),
+    # current_user: User = Depends(get_current_user),
 ):
     """
     Kích hoạt cảnh báo thủ công.
@@ -63,7 +63,7 @@ def trigger_alarm(
         "data": {
             "topic": ALERT_TOPIC,
             "payload": payload,
-            "triggered_by": current_user.username,
+            # "triggered_by": current_user.username,
             "triggered_at": datetime.now().isoformat()
         }
     }
@@ -71,7 +71,7 @@ def trigger_alarm(
 
 @router.post("/stop")
 def stop_alarm(
-    current_user: User = Depends(get_current_user),
+    # current_user: User = Depends(get_current_user),
 ):
     """
     Gửi lệnh dừng cảnh báo (intruder_count=0).
@@ -100,7 +100,7 @@ def stop_alarm(
         "success": True,
         "message": "Đã gửi lệnh dừng cảnh báo",
         "data": {
-            "triggered_by": current_user.username,
+            # "triggered_by": current_user.username,
             "stopped_at": datetime.now().isoformat()
         }
     }
@@ -108,13 +108,13 @@ def stop_alarm(
 
 @router.get("/status")
 def alarm_status(
-    current_user: User = Depends(get_current_user),
+    # current_user: User = Depends(get_current_user),
 ):
     """Kiểm tra trạng thái kết nối MQTT và topic cảnh báo."""
     return {
         "success": True,
         "data": {
-            "mqtt_connected": mqtt_client.is_connected(),
+            # "mqtt_connected": mqtt_client.is_connected(),
             "alert_topic": ALERT_TOPIC
         }
     }

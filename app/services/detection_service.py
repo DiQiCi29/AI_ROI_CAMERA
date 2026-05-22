@@ -1,4 +1,5 @@
 import json
+import httpx
 from datetime import datetime
 from sqlalchemy.orm import Session
 from app.models.alert import Alert
@@ -17,6 +18,27 @@ async def on_intrusion_detected_fast(camera_id: int, intruders: list, zone_name:
     try:
         object_count = len(intruders)
         detected_time = datetime.now().isoformat()
+
+        # 0. GỌI /alarm/trigger ĐỂ BẬT ESP32 (MQTT tới Buzzer + LED + LCD)
+        try:
+            async with httpx.AsyncClient() as client:
+                alarm_payload = {
+                    "camera_id": camera_id,
+                    "intruder_count": object_count,
+                    "message": f"AI detected {object_count} intruders at {zone_name}"
+                }
+                response = await client.post(
+                    "http://localhost:8000/api/v1/alarm/trigger",
+                    json=alarm_payload,
+                    timeout=5
+                )
+                if response.status_code == 200:
+                    print(f"✓ [Alarm Trigger] ESP32 alert activated ({object_count} intruders)")
+                else:
+                    print(f"✗ [Alarm Trigger] Failed: {response.status_code}")
+        except Exception as alarm_err:
+            print(f"✗ [Alarm Trigger Error] {str(alarm_err)}")
+
 
         # 1. PHÁT TRUYỀN WEBSOCKET ĐỂ HIỂN THỊ OVERLAY ĐỎ CHỚP TRÊN APP NGAY LẬP TỨC
         await broadcast("intrusion_detected", {

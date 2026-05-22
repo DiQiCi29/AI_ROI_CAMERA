@@ -65,3 +65,4 @@ def logout(
     
     db.commit()
     return {"success": True, "message": "Logged out successfully"}
+

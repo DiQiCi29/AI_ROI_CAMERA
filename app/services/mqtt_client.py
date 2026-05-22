@@ -45,19 +45,23 @@ class MqttClient:
             )
             self.client.loop_start()
             
-            # ✅ Chờ tối đa 5 giây cho đến khi connected
             timeout = 5
             start = time.time()
             while not self.connected and (time.time() - start) < timeout:
                 time.sleep(0.1)
             
+            # ✅ Thêm log chi tiết để debug
+            elapsed = time.time() - start
             if not self.connected:
-                logger.error("✗ MQTT: Timeout khi chờ kết nối")
+                logger.error(f"✗ MQTT: Timeout sau {elapsed:.1f}s — Broker có thể chưa chạy hoặc sai credentials")
                 return False
                 
-            logger.info(f"✓ MQTT: Kết nối {settings.MQTT_HOST}:{settings.MQTT_PORT}")
+            logger.info(f"✓ MQTT: Kết nối thành công sau {elapsed:.1f}s")
             return True
             
+        except ConnectionRefusedError:
+            logger.error(f"✗ MQTT: Connection refused — Broker chưa chạy tại {settings.MQTT_HOST}:{settings.MQTT_PORT}")
+            return False
         except Exception as e:
             logger.error(f"✗ MQTT: Lỗi kết nối - {str(e)}")
             return False

@@ -1,15 +1,15 @@
 // lib/models/zone_model.dart
+import 'dart:convert';
 
 class ZonePoint {
-  final double x; // % 0-100
-  final double y; // % 0-100
+  final double x;
+  final double y;
 
   const ZonePoint({required this.x, required this.y});
 
   factory ZonePoint.fromJson(Map<String, dynamic> j) {
     double x = (j['x'] as num).toDouble();
     double y = (j['y'] as num).toDouble();
-    // Tự động chuẩn hóa nếu dữ liệu là hệ 0-100 thay vì 0-1
     if (x > 1.0 || y > 1.0) {
       x /= 100.0;
       y /= 100.0;
@@ -43,17 +43,38 @@ class ZoneModel {
     // required this.updatedAt,
   });
 
-  factory ZoneModel.fromJson(Map<String, dynamic> j) => ZoneModel(
-    zoneId: j['zone_id'].toString(),
-    name: j['name'],
-    cameraId: j['camera_id'].toString(),
-    zoneType: j['zone_type'] ?? 'polygon',
-    coordinates: (j['coordinates'] as List).map((e) => ZonePoint.fromJson(e)).toList(),
-    isActive: j['is_active'] ?? true,
-    alertCooldownSeconds: j['alert_cooldown_seconds'] ?? 30,
-    createdAt: DateTime.parse(j['created_at']),
-    // updatedAt: DateTime.parse(j['updated_at'] ?? j['created_at']),
-  );
+  factory ZoneModel.fromJson(Map<String, dynamic> j) {
+    // 1. Xử lý ID linh hoạt (bắt cả 'zone_id' hoặc 'id')
+    final String parsedZoneId = (j['zone_id'] ?? j['id'] ?? '').toString();
+
+    // 2. Xử lý mảng tọa độ (Coordinates) chống lỗi String JSON
+    dynamic coordsRaw = j['coordinates'];
+    List<dynamic> coordsList = [];
+
+    if (coordsRaw != null) {
+      if (coordsRaw is String) {
+        try {
+          coordsList = jsonDecode(coordsRaw);
+        } catch (e) {
+          print('Lỗi parse coordinates JSON string: $e');
+        }
+      } else if (coordsRaw is List) {
+        coordsList = coordsRaw;
+      }
+    }
+
+    return ZoneModel(
+      zoneId: parsedZoneId,
+      name: j['name'] ?? 'Vùng cấm',
+      cameraId: (j['camera_id'] ?? '').toString(),
+      zoneType: j['zone_type'] ?? 'polygon',
+      // Xử lý tọa độ thông qua mảng đã được làm sạch ở trên
+      coordinates: coordsList.map((e) => ZonePoint.fromJson(e)).toList(),
+      isActive: j['is_active'] ?? true,
+      alertCooldownSeconds: j['alert_cooldown_seconds'] ?? 30,
+      createdAt: j['created_at'] != null ? DateTime.parse(j['created_at']) : DateTime.now(),
+    );
+  }
 
   Map<String, dynamic> toJson() => {
     'name': name,

@@ -43,20 +43,22 @@ async def broadcast_event(event: str, data: dict):
 
 @router.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, token: str = Query(None)):
-    # Luôn luôn chấp nhận kết nối trước để tránh lỗi 403 ngắt luồng realtime
+    # 1. Chấp nhận kết nối ngay lập tức để không lỗi giao thức
     await manager.connect(websocket)
     
-    # Nới lỏng kiểm tra token — nếu lỗi chỉ ghi warning, không chặn kết nối
+    # 2. Log token (không ngắt kết nối nếu lỗi)
     if token:
         try:
             payload = decode_token(token)
             logger.info(f"✓ [WebSocket] Client authenticated for user ID: {payload.get('sub')}")
-        except Exception:
-            logger.warning("⚠️ WebSocket token expired/invalid but connection allowed for live tracking")
+        except Exception as e:
+            logger.warning(f"⚠️ WebSocket token invalid/expired, connection kept alive: {str(e)}")
+    else:
+        logger.info("⚠️ WebSocket connected without token.")
 
+    # 3. Duy trì Ping-Pong
     try:
         while True:
-            # Lắng nghe dữ liệu rỗng để duy trì ping-pong kết nối không bị ngắt
             data = await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)

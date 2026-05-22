@@ -1,44 +1,40 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, List
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.models.zone import Zone
 from app.models.user import User
-from app.schemas.zone import ZoneCreate, ZoneUpdate
+from app.schemas.zone import ZoneCreate, ZoneUpdate, ZoneResponse # Đã import ZoneResponse
 
 router = APIRouter(prefix="/zones", tags=["Zone Management"])
 
-def zone_to_dict(z: Zone) -> dict:
-    return {
-        "zone_id": str(z.id),
-        "name": z.name,
-        "camera_id": z.camera_id,
-        "zone_type": z.zone_type,
-        "coordinates": z.coordinates,
-        "is_active": z.is_active,
-        "alert_cooldown_seconds": z.alert_cooldown_seconds or 30,
-        "created_at": z.created_at,
-        # "updated_at": z.updated_at,
-    }
+# ĐÃ XÓA: Hàm zone_to_dict (Không còn cần thiết nữa)
 
-def push_roi_to_detector(request: Request, db: Session):
-    """Lấy tất cả zone active và cập nhật ROI chuẩn hóa lên detector"""
-    active_zone = db.query(Zone).filter(Zone.is_active == True).order_by(Zone.id.desc()).first()
-    if not active_zone:
+def push_roi_to_detector(request: Request, db: Session, camera_id: int = 1):
+    """Lấy tất cả các zone đang active của camera và cập nhật lên AI Detector"""
+    if not hasattr(request.app.state, 'detector') or not request.app.state.detector:
         return
 
-    # Chỉ cần trích xuất dạng tuple (x, y) từ 0.0 - 1.0, KHÔNG nhân pixel nữa
-    coords_norm = [
-        (float(c["x"]), float(c["y"]))
-        for c in active_zone.coordinates
-    ]
+    # 1. Truy vấn lấy TẤT CẢ các vùng cấm đang kích hoạt của camera hiện tại
+    active_zones = db.query(Zone).filter(
+        Zone.is_active == True,
+        Zone.camera_id == camera_id
+    ).all()
+    
+    multi_rois_norm = []
+    
+    # 2. Duyệt qua từng vùng cấm, chuẩn hóa và đóng gói thành List các tọa độ
+    for zone in active_zones:
+        coords_norm = [
+            (float(c["x"]), float(c["y"]))
+            for c in zone.coordinates
+        ]
+        multi_rois_norm.append(coords_norm)
 
-    if hasattr(request.app.state, 'detector') and request.app.state.detector:
-        detector = request.app.state.detector
-        detector.update_roi(coords_norm)
-        print(f"[ROI] Updated normalized coords to AI: {coords_norm}")
-
+    # 3. Gửi mảng chứa nhiều Zone lên Detector (Dù mảng rỗng thì Detector sẽ tự động reset)
+    request.app.state.detector.update_multi_roi(multi_rois_norm)
+    print(f"[ROI] Updated {len(multi_rois_norm)} active zones to AI for Camera {camera_id}")
 
 @router.post("", status_code=201)
 def create_zone(body: ZoneCreate, request: Request,
@@ -63,9 +59,10 @@ def create_zone(body: ZoneCreate, request: Request,
 
     # ── Tự động cập nhật ROI lên AI detector ──
     if zone.is_active:
-        push_roi_to_detector(request, db)
+        push_roi_to_detector(request, db, zone.camera_id)
 
-    return {"success": True, "data": zone_to_dict(zone)}
+    # Trả về đối tượng Pydantic ZoneResponse
+    return {"success": True, "data": ZoneResponse.model_validate(zone).model_dump()}
 
 
 @router.get("")
@@ -75,7 +72,10 @@ def list_zones(camera_id: Optional[int] = None, is_active: Optional[bool] = None
     q = db.query(Zone)
     if camera_id: q = q.filter(Zone.camera_id == camera_id)
     if is_active is not None: q = q.filter(Zone.is_active == is_active)
-    return {"success": True, "data": [zone_to_dict(z) for z in q.all()]}
+    
+    # Trả về List các đối tượng Pydantic ZoneResponse
+    zones_response = [ZoneResponse.model_validate(z).model_dump() for z in q.all()]
+    return {"success": True, "data": zones_response}
 
 
 @router.get("/{zone_id}")
@@ -86,7 +86,7 @@ def get_zone(zone_id: int, db: Session = Depends(get_db),
         raise HTTPException(status_code=404, detail={
             "code": "ZONE_NOT_FOUND", "message": f"Zone {zone_id} not found"
         })
-    return {"success": True, "data": zone_to_dict(zone)}
+    return {"success": True, "data": ZoneResponse.model_validate(zone).model_dump()}
 
 
 @router.put("/{zone_id}")
@@ -108,9 +108,9 @@ def update_zone(zone_id: int, body: ZoneUpdate, request: Request,
     db.refresh(zone)
 
     # ── Tự động cập nhật ROI lên AI detector ──
-    push_roi_to_detector(request, db)
+    push_roi_to_detector(request, db, zone.camera_id)
 
-    return {"success": True, "data": zone_to_dict(zone)}
+    return {"success": True, "data": ZoneResponse.model_validate(zone).model_dump()}
 
 
 @router.delete("/{zone_id}")
@@ -128,9 +128,8 @@ def delete_zone(zone_id: int, request: Request,
     # Reset về ROI mặc định nếu xóa hết zone
     remaining = db.query(Zone).filter(Zone.is_active == True).count()
     if remaining == 0:
-        request.app.state.detector.update_roi([
-            (0, 0), (1280, 0), (1280, 720), (0, 720)
-        ])
+        # Nếu xóa hết zone, gửi một ROI trống để AI không bắt bất cứ gì
+        request.app.state.detector.update_roi([])
 
     return {"success": True, "message": "Zone deleted successfully"}
 
@@ -147,6 +146,6 @@ def toggle_zone(zone_id: int, request: Request,
     zone.is_active = not zone.is_active
     db.commit()
 
-    push_roi_to_detector(request, db)
+    push_roi_to_detector(request, db, zone.camera_id)
 
-    return {"success": True, "data": {"zone_id": str(zone.id), "is_active": zone.is_active}}
+    return {"success": True, "data": {"id": zone.id, "is_active": zone.is_active}}

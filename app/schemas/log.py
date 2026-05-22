@@ -28,16 +28,14 @@ class IntrusionLogCreate(BaseModel):
 
 class IntrusionLogResponse(BaseModel):
     """Schema for intrusion log response"""
-    log_id: str
-    alert_id: str
-    camera_id: str
-    zone_id: Optional[str] = None
+    id: int # SỬA: Đổi từ log_id: str thành id: int
+    alert_id: int # SỬA: Đổi str thành int
+    camera_id: Optional[int] = None # SỬA: Đổi str thành int và thêm Optional vì db cho phép nullable
+    zone_id: Optional[int] = None # SỬA: Giữ nguyên Optional nhưng đổi str thành int
     zone_name: Optional[str] = None
     entered_at: datetime
     exited_at: Optional[datetime] = None
     duration_seconds: Optional[int] = None
-    thumbnail_url: Optional[str] = None
-    video_url: Optional[str] = None
 
     class Config:
         from_attributes = True

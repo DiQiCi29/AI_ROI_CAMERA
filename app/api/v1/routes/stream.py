@@ -136,35 +136,28 @@ def stream_video(camera_id: int = Query(1, ge=1, description="Camera ID"),
 
 @router.get("/snapshot")
 async def get_snapshot(request: Request, camera_id: int = 1, 
-                       current_user: User = Depends(get_current_user),
-                       db: Session = Depends(get_db)):
-    """Trích xuất frame ảnh mới nhất từ AI Detector (hoặc đọc trực tiếp từ RTSP) và trả về binary JPEG"""
+                       current_user: User = Depends(get_current_user)):
+    """Trích xuất frame ảnh mới nhất từ AI Detector chạy ngầm (Phương án 1)"""
     try:
-        import os
-        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
-        
         detector = getattr(request.app.state, "detector", None)
         
-        # Ưu tiên dùng frame đã cache từ AI Detector
-        if detector is not None and detector.latest_frame is not None:
-            frame = detector.latest_frame
-        else:
-            # Fallback: đọc trực tiếp 1 frame từ RTSP
-            logger.warning("⚠️ [Snapshot] Detector frame not ready, reading directly from RTSP")
-            rtsp_url = get_camera_rtsp_url(camera_id, db)
-            cap = cv2.VideoCapture(f"{rtsp_url}?transport=tcp", cv2.CAP_FFMPEG)
-            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-            ret, frame = cap.read()
-            cap.release()
-            if not ret or frame is None:
-                raise HTTPException(status_code=503, detail="Cannot read frame from camera")
+        # Kiểm tra xem AI Worker đã lưu frame nào vào RAM chưa
+        if detector is None or detector.latest_frame is None:
+            raise HTTPException(
+                status_code=503, 
+                detail="Camera frame is not ready yet. Please wait for AI worker to start."
+            )
+            
+        frame = detector.latest_frame
         
-        # Mã hóa thành JPEG
-        success, encoded_image = cv2.imencode(".jpg", frame)
+        # Mã hóa thành JPEG nhị phân (Binary)
+        success, encoded_image = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 85])
         if not success:
-            raise HTTPException(status_code=500, detail="Failed to encode snapshot")
+            raise HTTPException(status_code=500, detail="Failed to encode snapshot image")
 
+        # Trả về mảng byte cho Mobile App
         return Response(content=encoded_image.tobytes(), media_type="image/jpeg")
+        
     except HTTPException:
         raise
     except Exception as e:

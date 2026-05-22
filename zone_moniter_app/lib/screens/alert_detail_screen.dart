@@ -21,12 +21,10 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
   void initState() { super.initState(); _loadDetail(); }
 
   Future<void> _loadDetail() async {
-  Future<void> _loadDetail() async {
     try {
       final data = await ApiService.instance.getAlertDetails(widget.alertId);
       if (mounted) { setState(() { _alert = data; _isLoading = false; }); _initVideo(); }
     } catch (_) { if (mounted) setState(() => _isLoading = false); }
-  }
   }
 
   Future<void> _initVideo() async {

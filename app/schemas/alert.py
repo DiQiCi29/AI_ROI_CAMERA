@@ -46,15 +46,14 @@ class AlertCreate(BaseModel):
 
 class AlertResponse(BaseModel):
     """Schema for alert response."""
-    alert_id: str
-    zone_id: Optional[str] = None
+    id: int  # SỬA: Đổi từ alert_id: str thành id: int
+    zone_id: Optional[int] = None # SỬA: Đổi str thành int
     zone_name: Optional[str] = None
-    camera_id: Optional[str] = None
+    camera_id: Optional[int] = None # SỬA: Đổi str thành int
     detected_at: Optional[datetime] = None
-    is_read: bool = False
-    thumbnail_url: Optional[str] = None
-    video_url: Optional[str] = None
-    object_count: int = 1
+    is_acknowledged: int = 0  # THÊM: Database đang dùng is_acknowledged, chứ không phải is_read
+    thumbnail_path: Optional[str] = None # SỬA: Tên db là thumbnail_path chứ không phải thumbnail_url
+    video_clip_path: Optional[str] = None # SỬA: Tên db là video_clip_path chứ không phải video_url
     confidence: Optional[float] = None
     bounding_boxes: Optional[list] = None
 

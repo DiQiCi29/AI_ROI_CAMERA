@@ -7,6 +7,7 @@ import '../services/api_service.dart';
 import '../services/websocket_service.dart';
 import '../services/notification_service.dart';
 import '../config/app_config.dart';
+import '../main.dart';
 
 class AppProvider extends ChangeNotifier {
   bool _isLoggedIn = false;
@@ -18,9 +19,10 @@ class AppProvider extends ChangeNotifier {
   bool _isLoading = false;
   List<ZoneModel> _zones = [];
 
-  // Trạng thái cảnh báo xâm nhập trực tiếp
   Map<String, dynamic>? _activeAlert;
-  bool get hasActiveAlert => _activeAlert != null;
+
+  // Kiểm tra điều kiện alert == true thì mới báo động (chống spam vẽ khung rỗng)
+  bool get hasActiveAlert => _activeAlert != null && _activeAlert!['alert'] == true;
   Map<String, dynamic>? get activeAlert => _activeAlert;
 
   bool get isLoggedIn => _isLoggedIn;
@@ -34,9 +36,22 @@ class AppProvider extends ChangeNotifier {
 
   final WebSocketService _ws = WebSocketService();
 
-  // ─── Auth ──────────────────────────────────────────────
+  AppProvider() {
+    ApiService.instance.onTokenExpired = () {
+      if (_isLoggedIn) {
+        rootScaffoldMessengerKey.currentState?.showSnackBar(
+          const SnackBar(
+            content: Text('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại!'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 4),
+          ),
+        );
+        logout();
+      }
+    };
+  }
+
   Future<void> loadSavedToken() async {
-    // 1. Load saved Server URL first
     final savedUrl = await ApiService.getSavedBaseUrl();
     if (savedUrl != null && savedUrl.isNotEmpty) {
       AppConfig.baseUrl = savedUrl;
@@ -58,7 +73,6 @@ class AppProvider extends ChangeNotifier {
       _token = res['access_token'];
       if (_token != null) {
         await ApiService.saveToken(_token!);
-        // Save current server URL on successful login
         await ApiService.saveBaseUrl(AppConfig.baseUrl);
       }
       _isLoggedIn = true;
@@ -72,26 +86,20 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> _afterLogin() async {
-    // Kết nối WebSocket
     _setupWebSocket();
     _ws.connect();
 
-    // Đăng ký FCM token
     try {
       final fcmToken = await NotificationService.getFcmToken();
       if (fcmToken != null) {
-        // Assume deviceId is required, can be generated or fetched
         await ApiService.instance.registerFcmToken(fcmToken, 'android_device_id');
       }
     } catch (e) {
       debugPrint('Chưa cấu hình Firebase hoặc lỗi FCM: $e');
     }
 
-    // Load dữ liệu ban đầu
     try {
-      // Refresh camera status first to get the correct camera ID
       await refreshCameraStatus();
-      
       await Future.wait([
         loadZones(),
         refreshUnreadCount(),
@@ -102,8 +110,19 @@ class AppProvider extends ChangeNotifier {
   }
 
   void _setupWebSocket() {
+    // Lắng nghe luồng tọa độ live_intrusion_boxes từ AI truyền xuống
+    _ws.onLiveBboxes = (data) {
+      final String incomingCamId = data['camera_id'].toString();
+      final String currentCamId = (_currentCameraId ?? '1').toString();
+
+      // Chỉ cập nhật nếu gói tin thuộc về camera hiện tại
+      if (incomingCamId == currentCamId) {
+        _activeAlert = data;
+        notifyListeners(); // Kích hoạt vẽ UI
+      }
+    };
+
     _ws.onIntrusionDetected = (data) {
-      _activeAlert = data;
       _unreadCount++;
       notifyListeners();
       NotificationService.triggerAlert(zoneName: data['zone_name']);
@@ -121,8 +140,6 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     _ws.disconnect();
-    
-    // Clear state immediately for better UX
     _isLoggedIn = false;
     _token = null;
     _zones = [];
@@ -131,13 +148,11 @@ class AppProvider extends ChangeNotifier {
     _cameraOnline = false;
     notifyListeners();
 
-    // Fire and forget logout request, don't wait for it
     ApiService.instance.logout('android_device_id').catchError((e) {
       debugPrint('Logout error (ignored): $e');
     });
   }
 
-  // ─── Zones ─────────────────────────────────────────────
   Future<void> loadZones() async {
     _isLoading = true;
     notifyListeners();
@@ -145,9 +160,8 @@ class AppProvider extends ChangeNotifier {
     try {
       final int? camId = int.tryParse(_currentCameraId ?? '');
       _zones = await ApiService.instance.getZones(cameraId: camId);
-      debugPrint("✓ [Provider] Loaded ${_zones.length} zones successfully.");
     } catch (e) {
-      debugPrint("✗ [Provider] Exception inside loadZones: $e");
+      debugPrint("✗ Lỗi loadZones: $e");
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -198,7 +212,6 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  // ─── Alerts & Stats ────────────────────────────────────
   Future<void> refreshUnreadCount() async {
     try {
       _unreadCount = await ApiService.instance.getUnreadCount();
@@ -227,7 +240,6 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Thêm hàm để kết nối lại khi đổi IP
   void reconnectAll() {
     _ws.disconnect();
     if (_isLoggedIn) {
@@ -236,6 +248,7 @@ class AppProvider extends ChangeNotifier {
       refreshCameraStatus();
     }
   }
+
   Future<bool> fetchCameraSnapshot() async {
     _isLoading = true;
     _cameraSnapshotBytes = null;
@@ -259,4 +272,3 @@ class AppProvider extends ChangeNotifier {
     }
   }
 }
-

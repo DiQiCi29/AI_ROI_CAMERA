@@ -68,6 +68,9 @@ class ApiService {
   static final ApiService instance = ApiService._();
   late Dio _dio;
 
+  // 1. Khai báo biến callback
+  VoidCallback? onTokenExpired;
+
   ApiService._() {
     _initDio();
   }
@@ -83,7 +86,7 @@ class ApiService {
       connectTimeout: const Duration(seconds: 10),
       receiveTimeout: const Duration(seconds: 10),
     ));
-    
+
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
         final token = await getToken();
@@ -93,6 +96,11 @@ class ApiService {
         return handler.next(options);
       },
       onError: (DioException e, handler) {
+        // 2. Bắt lỗi 401 và gọi callback để kích hoạt đăng xuất
+        if (e.response?.statusCode == 401) {
+          onTokenExpired?.call();
+        }
+
         if (e.response != null) {
           final data = e.response!.data;
           if (data is Map && data.containsKey('error')) {
@@ -139,10 +147,10 @@ class ApiService {
     return prefs.getString('server_url');
   }
 
-  Map<String, dynamic> _handleResponse(Response response) {
+  dynamic _handleResponse(Response response) {
     final data = response.data;
     if (data["success"] == true) {
-      return data["data"] ?? {};
+      return data["data"]; // Trả về nguyên bản dữ liệu
     }
     throw ApiException(
       code: "API_ERROR",
@@ -189,39 +197,48 @@ class ApiService {
 
   static Future<Uint8List?> getCameraSnapshotBytes(int cameraId) async {
     try {
-      final token = await getToken();
-      final response = await http.get(
-        Uri.parse('${AppConfig.snapshot}?camera_id=$cameraId'),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
+      // Sử dụng _dio của instance để tự động thêm Token, BaseUrl và quản lý timeout
+      final response = await instance._dio.get(
+        '/stream/snapshot',
+        queryParameters: {'camera_id': cameraId},
+        options: Options(
+          responseType: ResponseType.bytes, // Ép kiểu dữ liệu trả về là dạng byte nhị phân
+        ),
       );
 
       if (response.statusCode == 200) {
-        return response.bodyBytes; // Trả về mảng byte nguyên bản
+        return Uint8List.fromList(response.data);
+      }
+      return null;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 401) {
+        debugPrint("✗ [Snapshot] Lỗi 401: Token hết hạn!");
+      } else {
+        debugPrint("✗ [Snapshot] Lỗi Dio: ${e.response?.statusCode} - ${e.message}");
       }
       return null;
     } catch (e) {
-      debugPrint("✗ Lỗi ApiService getSnapshot: $e");
+      debugPrint("✗ [Snapshot] Lỗi không xác định: $e");
       return null;
     }
   }
 
   // Zones
   Future<List<ZoneModel>> getZones({int? cameraId, bool? isActive}) async {
-    final response = await _dio.get('/zones', queryParameters: {
-      if (cameraId != null) 'camera_id': cameraId,
-      if (isActive != null) 'is_active': isActive,
-    });
-    // data là List trực tiếp
-    final raw = _handleResponse(response);
-    final List<dynamic> tempList;
-    if (raw is List) {
-      tempList = raw as List<dynamic>;
-    } else {
-      tempList = (raw['zones'] as List?) ?? [];
+    try {
+      final response = await _dio.get('/zones', queryParameters: {
+        if (cameraId != null) 'camera_id': cameraId,
+        if (isActive != null) 'is_active': isActive,
+      });
+
+      // raw bây giờ chắc chắn là List (Mảng đối tượng)
+      final List<dynamic> raw = _handleResponse(response) as List<dynamic>;
+
+      return raw.map((e) => ZoneModel.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (e) {
+      debugPrint("✗ [ApiService] Lỗi tải Zones: $e");
+      return []; // Nếu có lỗi, trả về mảng rỗng để không bị sập UI
     }
-    return tempList.map((e) => ZoneModel.fromJson(e as Map<String, dynamic>)).toList();
   }
 
   Future<ZoneModel> createZone(Map<String, dynamic> data) async {

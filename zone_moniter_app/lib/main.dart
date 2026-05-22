@@ -8,6 +8,8 @@ import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
 import 'services/notification_service.dart';
 
+final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+
 // Tách cấu hình Theme ra để dễ quản lý và chuẩn Material 3
 class AppTheme {
   static const Color primaryColor = Color(0xFF0D47A1);
@@ -61,6 +63,7 @@ class ZoneMonitorApp extends StatelessWidget {
         title: 'Zone Monitor',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
+        scaffoldMessengerKey: rootScaffoldMessengerKey, // 2. Gắn key vào MaterialApp
         home: const _AuthGate(),
       ),
     );

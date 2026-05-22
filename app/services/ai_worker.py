@@ -2,7 +2,7 @@ import cv2
 import time
 import threading
 import asyncio
-from app.api.v1.routes.websocket import broadcast_event
+from app.api.v1.routes.websocket import broadcast_event, manager
 
 class AIWorker:
     def __init__(self, detector, rtsp_url: str, camera_id: int = 1):
@@ -26,40 +26,45 @@ class AIWorker:
             print(f"[AI Worker] Stopped for Camera {self.camera_id}")
 
     def _run(self):
-        # Mở luồng camera ưu tiên TCP cho ổn định
-        cap = cv2.VideoCapture(f"{self.rtsp_url}?transport=tcp", cv2.CAP_FFMPEG)
+        import os
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp|stimeout;3000000"
+        
+        cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-
-        # Khởi tạo event loop để gửi WebSocket trong Thread này
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
 
         print(f"[AI Worker] Connecting to RTSP: {self.rtsp_url}")
 
         while self.running:
             ret, frame = cap.read()
-            if not ret:
-                print("[AI Worker] Connection lost. Reconnecting in 3s...")
-                time.sleep(3)
-                cap = cv2.VideoCapture(f"{self.rtsp_url}?transport=tcp", cv2.CAP_FFMPEG)
+            if not ret or frame is None:
+                cap.release()
+                time.sleep(2)
+                cap = cv2.VideoCapture(self.rtsp_url, cv2.CAP_FFMPEG)
+                cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
                 continue
 
-            # Bỏ ảnh vào YOLO
             output = self.detector.process_frame(frame)
-#log test
-            # print(f"[AI Worker] Frame read. Alert: {output['alert']} | Intruders: {len(output['intruders'])}")
 
-            # Bắn WebSocket (real-time live stream tọa độ)
+            # --- TRẠM 1: BACKEND ĐÃ NHẬN DIỆN ĐƯỢC CHƯA? ---
             if output["alert"]:
-                event_data = {
-                    "camera_id": str(self.camera_id),
-                    "intruders": output["intruders"] # Đây là list bbox 0.0 - 1.0
-                }
-                # Bắn sự kiện tên là 'live_intrusion_boxes' xuống App Flutter
-                loop.run_until_complete(broadcast_event("live_intrusion_boxes", event_data))
+                print(f"🚩 [Trạm 1 - Backend] Yolo phát hiện {len(output['intruders'])} người! Đang bắn WebSocket...")
 
-            # Giới hạn tốc độ phân tích để đỡ nóng máy (10 FPS là quá đủ cho an ninh)
-            time.sleep(0.1)
+            # Đóng gói dữ liệu gửi qua WebSocket
+            event_data = {
+                "camera_id": str(self.camera_id),
+                "alert": output["alert"],
+                "intruders": output["intruders"] 
+            }
+            
+            try:
+                try:
+                    main_loop = asyncio.get_running_loop()
+                    asyncio.run_coroutine_threadsafe(broadcast_event("live_intrusion_boxes", event_data), main_loop)
+                except RuntimeError:
+                    asyncio.run(broadcast_event("live_intrusion_boxes", event_data))
+            except Exception as ws_err:
+                print(f"[AI Worker] WebSocket broadcast error: {ws_err}")
+
+            time.sleep(0.06)
 
         cap.release()
-        loop.close()

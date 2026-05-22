@@ -1,13 +1,12 @@
-import 'dart:async';
+// lib/screens/camera_stream_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:webview_flutter_android/webview_flutter_android.dart';
 import '../providers/app_provider.dart';
-import '../config/app_config.dart';
 import '../widgets/zone_painter.dart';
-import '../services/websocket_service.dart';
 import 'zone_draw_screen.dart';
+import '../widgets/live_bbox_overlay.dart';
 
 class CameraStreamScreen extends StatefulWidget {
   const CameraStreamScreen({super.key});
@@ -17,7 +16,6 @@ class CameraStreamScreen extends StatefulWidget {
 
 class _CameraStreamScreenState extends State<CameraStreamScreen> {
   late final WebViewController _webController;
-  
   bool _isLoading = true;
   bool _showZones = true;
   String? _error;
@@ -26,8 +24,11 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
   void initState() {
     super.initState();
     _initWebViewController();
-    _setupWebSocket();
     _loadWebRTC();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AppProvider>().loadZones();
+    });
   }
 
   void _initWebViewController() {
@@ -41,57 +42,72 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
           onWebResourceError: (err) {
             debugPrint("WebView Error: ${err.description}");
             setState(() {
-              _error = "WebRTC không phản hồi. Kiểm tra Firewall cổng 8889.";
+              _error = "Không thể kết nối luồng WebRTC Proxy";
               _isLoading = false;
             });
           },
         ),
       );
-    
-    if (_webController.platform is AndroidWebViewController) {
-      (_webController.platform as AndroidWebViewController).setMediaPlaybackRequiresUserGesture(false);
-    }
-  }
-
-  void _setupWebSocket() {
-    WebSocketService().onCameraStatusChanged = (data) {
-      if (mounted) {
-        context.read<AppProvider>().refreshCameraStatus();
-      }
-    };
   }
 
   void _loadWebRTC() {
-    setState(() => _isLoading = true);
-    final cameraName = "camera_01"; 
-    final url = AppConfig.webrtcPage(cameraName);
-    debugPrint("Loading WebRTC URL: $url");
-    _webController.loadRequest(Uri.parse(url));
-  }
+    final provider = context.read<AppProvider>();
+    final camId = provider.currentCameraId ?? "1";
+    final webrtcUrl = "http://127.0.0.1:8889/camera_${camId.padLeft(2, '0')}/whep";
 
-  @override
-  void dispose() {
-    WebSocketService().onCameraStatusChanged = null;
-    super.dispose();
+    _webController.loadHtmlString('''
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+        <style>
+          body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: black; overflow: hidden; }
+          whep-video { width: 100%; height: 100%; object-fit: contain; }
+        </style>
+        <script src="https://cdn.jsdelivr.net/npm/@livekit/whep-video@1.0.1/dist/index.js"></script>
+      </head>
+      <body>
+        <video id="video" autoplay muted playsinline></video>
+        <script>
+          const videoElement = document.getElementById('video');
+          navigator.mediaDevices.getUserMedia({ video: true }).then(() => {
+             const peerConnection = new RTCPeerConnection();
+             peerConnection.ontrack = (event) => {
+               if (videoElement.srcObject !== event.streams[0]) {
+                 videoElement.srcObject = event.streams[0];
+               }
+             };
+             peerConnection.addTransceiver('video', { direction: 'recvonly' });
+             fetch('$webrtcUrl', {
+               method: 'POST',
+               body: peerConnection.localDescription.sdp,
+               headers: { 'Content-Type': 'application/sdp' }
+             }).then(res => res.text()).then(sdp => {
+               peerConnection.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: sdp }));
+             });
+          });
+        </script>
+      </body>
+      </html>
+    ''');
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
     final zones = provider.zones;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Giám sát Camera', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         actions: [
           IconButton(
-            icon: Icon(_showZones ? Icons.layers : Icons.layers_clear), 
-            onPressed: () => setState(() => _showZones = !_showZones)
+              icon: Icon(_showZones ? Icons.layers : Icons.layers_clear),
+              onPressed: () => setState(() => _showZones = !_showZones)
           ),
           IconButton(
               icon: const Icon(Icons.add_location_alt_rounded),
               onPressed: () async {
-                final provider = context.read<AppProvider>();
                 final success = await provider.fetchCameraSnapshot();
 
                 if (!mounted) return;
@@ -118,33 +134,54 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
       body: Column(
         children: [
           Expanded(
-            child: Stack(
-              children: [
-                Center(
-                  child: _error != null
-                      ? _buildErrorWidget()
-                      : WebViewWidget(controller: _webController),
-                ),
-                
-                if (_isLoading) const Center(child: CircularProgressIndicator()),
-
-                // ROI Zones Overlay vẽ từ tọa độ WebSocket
-                if (_showZones && zones.isNotEmpty) 
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: LayoutBuilder(builder: (_, constraints) {
-                        return CustomPaint(
-                          painter: ZoneOverlayPainter(
-                            zones: zones, 
-                            frameSize: Size(constraints.maxWidth, constraints.maxHeight)
-                          )
-                        );
-                      }),
+            child: Center(
+              // Đưa toàn bộ khu vực stream vào AspectRatio cố định tỷ lệ 16:9
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Stack(
+                  children: [
+                    Center(
+                      child: _error != null
+                          ? Text(_error!, style: const TextStyle(color: Colors.white54))
+                          : WebViewWidget(controller: _webController),
                     ),
-                  ),
-                  
-                Positioned(top: 12, left: 12, child: _buildStatusBadge()),
-              ],
+
+                    if (_isLoading) const Center(child: CircularProgressIndicator()),
+
+                    if (_showZones && zones.isNotEmpty)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: LayoutBuilder(builder: (_, constraints) {
+                            return CustomPaint(
+                                painter: ZoneOverlayPainter(
+                                    zones: zones,
+                                    frameSize: Size(constraints.maxWidth, constraints.maxHeight)
+                                )
+                            );
+                          }),
+                        ),
+                      ),
+
+                    // Lớp trên cùng: Vẽ BBox thời gian thực
+                    if (provider.hasActiveAlert)
+                      Positioned.fill(
+                        child: IgnorePointer(
+                          child: LayoutBuilder(builder: (_, constraints) {
+                            final intruders = provider.activeAlert?['intruders'] as List? ?? [];
+                            return CustomPaint(
+                              painter: LiveBboxPainter(
+                                intruders: intruders,
+                                frameSize: Size(constraints.maxWidth, constraints.maxHeight),
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
+
+                    Positioned(top: 12, left: 12, child: _buildStatusBadge()),
+                  ],
+                ),
+              ),
             ),
           ),
           _buildZoneFooter(zones),
@@ -153,42 +190,19 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
     );
   }
 
-  Widget _buildErrorWidget() {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center, 
-        children: [
-          const Icon(Icons.videocam_off_rounded, color: Colors.white38, size: 64), 
-          const SizedBox(height: 16), 
-          Text(_error!, style: const TextStyle(color: Colors.white54), textAlign: TextAlign.center), 
-          const SizedBox(height: 24), 
-          ElevatedButton.icon(
-            icon: const Icon(Icons.refresh), 
-            label: const Text('Thử lại WebRTC'), 
-            onPressed: () => setState(() { _error = null; _isLoading = true; _loadWebRTC(); })
-          )
-        ]
-      ),
-    );
-  }
-
   Widget _buildStatusBadge() {
-    final isLive = _error == null && !_isLoading;
-    final color = isLive ? Colors.green : Colors.red;
+    final online = context.select<AppProvider, bool>((p) => p.cameraOnline);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), 
-      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20), border: Border.all(color: color, width: 1)), 
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)), 
-          const SizedBox(width: 6), 
-          const Text('WEBRTC (TỐC ĐỘ CAO)', 
-            style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold)
-          )
-        ]
-      )
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(15)),
+        child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(width: 8, height: 8, decoration: BoxDecoration(color: online ? Colors.green : Colors.red, shape: BoxShape.circle)),
+              const SizedBox(width: 6),
+              Text(online ? 'LIVE - WEBRTC' : 'OFFLINE', style: TextStyle(color: online ? Colors.green : Colors.red, fontSize: 11, fontWeight: FontWeight.bold))
+            ]
+        )
     );
   }
 
@@ -200,7 +214,7 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
         itemBuilder: (_, i) => Container(
           margin: const EdgeInsets.only(right: 8), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(color: zones[i].isActive ? Colors.red.withOpacity(0.15) : Colors.grey.withOpacity(0.1), borderRadius: BorderRadius.circular(20), border: Border.all(color: zones[i].isActive ? Colors.red.withOpacity(0.4) : Colors.grey.withOpacity(0.3))),
-          child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(zones[i].isActive ? Icons.shield : Icons.shield_outlined, color: zones[i].isActive ? Colors.red : Colors.grey, size: 18), const SizedBox(height: 2), Text(zones[i].name, style: TextStyle(color: zones[i].isActive ? Colors.red : Colors.grey, fontSize: 10))]),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(zones[i].isActive ? Icons.shield : Icons.shield_outlined, color: zones[i].isActive ? Colors.red : Colors.grey, size: 18), const SizedBox(height: 4), Text(zones[i].name, style: TextStyle(color: zones[i].isActive ? Colors.white : Colors.white38, fontSize: 12))]),
         ),
       ),
     );

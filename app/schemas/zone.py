@@ -29,7 +29,7 @@ class ZoneUpdate(BaseModel):
     alert_cooldown_seconds: Optional[int] = None
 
 class ZoneResponse(BaseModel):
-    zone_id: str
+    id: int
     name: str
     camera_id: int
     zone_type: str

@@ -52,7 +52,7 @@ class AlertModel {
   });
 
   factory AlertModel.fromJson(Map<String, dynamic> j) => AlertModel(
-    alertId: j['alert_id'].toString(),
+    alertId: (j['alert_id'] ?? j['id']).toString(),
     cameraId: j['camera_id']?.toString(),
     zoneId: j['zone_id'].toString(),
     zoneName: j['zone_name'] ?? '',

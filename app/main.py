@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from app.core.config import settings
 from app.core.database import engine, Base
-from app.api.v1.routes import health, stream, auth, zones, alerts, logs, media, websocket, devices
+from app.api.v1.routes import health, stream, auth, zones, alerts, logs, media, websocket, devices,alarm
 from app.ai.detector import IntrusionDetector
 from app.services.mqtt_client import mqtt_client
 from app.services.mqtt_listener import mqtt_listener
@@ -99,7 +99,7 @@ app.include_router(alerts.router,    prefix=prefix)
 app.include_router(logs.router,      prefix=prefix)
 app.include_router(media.router,     prefix=prefix)
 app.include_router(devices.router,   prefix=prefix)
-app.include_router(websocket.router)
+app.include_router(alarm.router, prefix=prefix)
 
 @app.get("/", tags=["Root"])
 async def root():

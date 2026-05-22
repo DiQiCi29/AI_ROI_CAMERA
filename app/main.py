@@ -20,6 +20,7 @@ from app.api.v1.routes import health, stream, auth, zones, alerts, logs, media, 
 from app.ai.detector import IntrusionDetector
 from app.services.mqtt_client import mqtt_client
 from app.services.mqtt_listener import mqtt_listener
+from app.api.v1.routes import monitoring
 import app.models
 import logging
 
@@ -60,6 +61,7 @@ async def lifespan(app: FastAPI):
             confidence=0.5,
             mqtt_client=mqtt_client if mqtt_connected else None,  # FIX
         )
+        app.state.monitoring_active = True
         logger.info("✓ AI Detector ready")
     except Exception as e:
         logger.error(f"✗ AI Detector initialization failed: {str(e)}")
@@ -139,6 +141,7 @@ app.include_router(logs.router,     prefix=prefix)
 app.include_router(media.router,    prefix=prefix)
 app.include_router(devices.router,  prefix=prefix)
 app.include_router(alarm.router,    prefix=prefix)
+app.include_router(monitoring.router, prefix=prefix)
 app.include_router(websocket.router)
 
 @app.get("/", tags=["Root"])

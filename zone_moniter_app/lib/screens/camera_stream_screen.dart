@@ -1,8 +1,10 @@
 // lib/screens/camera_stream_screen.dart
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:video_player/video_player.dart';
 import '../providers/app_provider.dart';
 import '../widgets/zone_painter.dart';
 import 'zone_draw_screen.dart';
@@ -16,51 +18,69 @@ class CameraStreamScreen extends StatefulWidget {
 }
 
 class _CameraStreamScreenState extends State<CameraStreamScreen> {
-  late final WebViewController _webController;
+  // WebRTC (primary)
+  WebViewController? _webController;
+  // HLS (fallback)
+  VideoPlayerController? _videoCtrl;
   bool _isLoading = true;
   bool _showZones = true;
   String? _error;
+  String? _streamMode; // "WEBRTC" or "HLS"
+  Timer? _webrtcTimeout;
 
   @override
   void initState() {
     super.initState();
-    _initWebViewController();
-    _loadWebRTC();
+    _tryWebRTCFirst();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<AppProvider>().loadZones();
     });
   }
 
-  void _initWebViewController() {
+  void _tryWebRTCFirst() {
+    final provider = context.read<AppProvider>();
+    final camId = provider.currentCameraId ?? "1";
+    final webrtcBase = AppConfig.webrtcBaseUrl;
+    final webrtcUrl = "$webrtcBase/camera_${camId.padLeft(2, '0')}/whep";
+
+    debugPrint("[STREAM] ▶️ Trying WebRTC: $webrtcUrl");
+
     _webController = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(Colors.black)
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageStarted: (_) => setState(() => _isLoading = true),
-          onPageFinished: (_) => setState(() => _isLoading = false),
-          onWebResourceError: (err) {
-            debugPrint("WebView Error: ${err.description}");
-            setState(() {
-              _error = "Không thể kết nối luồng WebRTC";
-              _isLoading = false;
+          onPageStarted: (_) => _isLoading = true,
+          onPageFinished: (_) {
+            // WebRTC page loaded, wait 10s for video to start
+            _webrtcTimeout = Timer(const Duration(seconds: 10), () {
+              _webController?.runJavaScriptReturningResult('document.title').then((result) {
+                final title = result.toString().replaceAll('"', '');
+                if (title == 'WEBRTC_FAILED' || title == 'WEBRTC_STALLED') {
+                  debugPrint("[STREAM] ⚠️ WebRTC failed/stalled → FALLBACK to HLS");
+                  _fallbackToHls();
+                } else {
+                  // WebRTC seems OK
+                  setState(() {
+                    _isLoading = false;
+                    _streamMode = "WEBRTC";
+                  });
+                  debugPrint("[STREAM] ✅ WebRTC connected");
+                }
+              }).catchError((_) { 
+                _fallbackToHls(); 
+              });
             });
+          },
+          onWebResourceError: (err) {
+            debugPrint("[STREAM] ⚠️ WebRTC resource error: ${err.description} → FALLBACK to HLS");
+            _fallbackToHls();
           },
         ),
       );
-  }
 
-  void _loadWebRTC() {
-    final provider = context.read<AppProvider>();
-    final camId = provider.currentCameraId ?? "1";
-    // FIX: Dùng AppConfig.webrtcBaseUrl thay vì hardcode 127.0.0.1
-    final webrtcBase = AppConfig.webrtcBaseUrl;
-    final webrtcUrl = "$webrtcBase/camera_${camId.padLeft(2, '0')}/whep";
-
-    debugPrint("[WebRTC] Connecting to: $webrtcUrl");
-
-    _webController.loadHtmlString('''
+    _webController!.loadHtmlString('''
       <!DOCTYPE html>
       <html>
       <head>
@@ -94,19 +114,70 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
               await pc.setRemoteDescription({ type: 'answer', sdp: sdp });
             } catch(e) {
               console.error('WebRTC error:', e);
+              document.title = 'WEBRTC_FAILED';
             }
           }
           startWebRTC();
+          setInterval(() => {
+            const video = document.getElementById('video');
+            if (video && video.readyState < 2 && document.title !== 'WEBRTC_FAILED') {
+              document.title = 'WEBRTC_STALLED';
+            }
+          }, 5000);
         </script>
       </body>
       </html>
     ''');
   }
 
+  void _fallbackToHls() {
+    _webrtcTimeout?.cancel();
+    _webController = null; // release WebRTC
+
+    debugPrint("[STREAM] ▶️ FALLBACK to HLS...");
+
+    final provider = context.read<AppProvider>();
+    final camId = provider.currentCameraId ?? "1";
+    final host = Uri.parse(AppConfig.baseUrl).host;
+    final hlsUrl = "http://$host:8888/camera_${camId.padLeft(2, '0')}/index.m3u8";
+
+    debugPrint("[STREAM] 🔄 FALLBACK to HLS: $hlsUrl");
+
+    _videoCtrl = VideoPlayerController.networkUrl(Uri.parse(hlsUrl));
+    _videoCtrl!.initialize().then((_) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _streamMode = "HLS";
+      });
+      _videoCtrl!.setLooping(true);
+      _videoCtrl!.setVolume(0);
+      _videoCtrl!.play();
+      debugPrint("[STREAM] ✅ FALLBACK HLS connected");
+    }).catchError((err) {
+      debugPrint("[STREAM] ❌ HLS also failed: $err");
+      if (!mounted) return;
+      setState(() {
+        _error = "Không thể kết nối luồng video";
+        _isLoading = false;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _webrtcTimeout?.cancel();
+    _webController = null;
+    _videoCtrl?.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<AppProvider>();
     final zones = provider.zones;
+    final isHlsReady = _videoCtrl != null && _videoCtrl!.value.isInitialized;
+    final useWebRtc = _webController != null && _streamMode == "WEBRTC";
 
     return Scaffold(
       appBar: AppBar(
@@ -120,7 +191,7 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
               icon: const Icon(Icons.add_location_alt_rounded),
               onPressed: () async {
                 final success = await provider.fetchCameraSnapshot();
-                if (!mounted) return;
+                if (!mounted || !context.mounted) return;
                 if (!success || provider.cameraSnapshotBytes == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Không thể lấy ảnh để vẽ zone!'))
@@ -155,10 +226,14 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
                           const SizedBox(height: 8),
                           Text(_error!, style: const TextStyle(color: Colors.white54)),
                           const SizedBox(height: 8),
-                          Text(AppConfig.webrtcBaseUrl, style: const TextStyle(color: Colors.white24, fontSize: 11)),
+                          Text(Uri.parse(AppConfig.baseUrl).host, style: const TextStyle(color: Colors.white24, fontSize: 11)),
                         ],
                       )
-                          : WebViewWidget(controller: _webController),
+                          : useWebRtc
+                              ? WebViewWidget(controller: _webController!)
+                              : isHlsReady
+                                  ? VideoPlayer(_videoCtrl!)
+                                  : const Center(child: CircularProgressIndicator()),
                     ),
                     if (_isLoading) const Center(child: CircularProgressIndicator()),
                     if (_showZones && zones.isNotEmpty)
@@ -174,14 +249,16 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
                           }),
                         ),
                       ),
-                    if (provider.hasActiveAlert)
+                    if (provider.hasActiveBbox || provider.detectedAllPeople.isNotEmpty)
                       Positioned.fill(
                         child: IgnorePointer(
                           child: LayoutBuilder(builder: (_, constraints) {
                             final intruders = provider.activeAlert?['intruders'] as List? ?? [];
+                            final allPeople = provider.detectedAllPeople;
                             return CustomPaint(
                               painter: LiveBboxPainter(
                                 intruders: intruders,
+                                allPeople: allPeople,
                                 frameSize: Size(constraints.maxWidth, constraints.maxHeight),
                               ),
                             );
@@ -202,6 +279,7 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
 
   Widget _buildStatusBadge() {
     final online = context.select<AppProvider, bool>((p) => p.cameraOnline);
+    final mode = _streamMode ?? "CONNECTING";
     return Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(15)),
@@ -210,7 +288,7 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
             children: [
               Container(width: 8, height: 8, decoration: BoxDecoration(color: online ? Colors.green : Colors.red, shape: BoxShape.circle)),
               const SizedBox(width: 6),
-              Text(online ? 'LIVE - WEBRTC' : 'OFFLINE', style: TextStyle(color: online ? Colors.green : Colors.red, fontSize: 11, fontWeight: FontWeight.bold))
+              Text('LIVE - $mode', style: TextStyle(color: online ? Colors.green : Colors.red, fontSize: 11, fontWeight: FontWeight.bold))
             ]
         )
     );

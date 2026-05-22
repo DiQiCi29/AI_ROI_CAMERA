@@ -8,7 +8,7 @@ from app.models.alert import Alert
 from app.models.zone import Zone
 from app.models.user import User
 from app.schemas.alert import AlertCreate
-from app.services.detection_service import on_intrusion_detected
+from app.services.detection_service import on_intrusion_detected_fast
 from app.services.fcm_service import FCMService
 import math
 import json
@@ -83,7 +83,7 @@ def create_alert(body: AlertCreate, db: Session = Depends(get_db),
     zone_name = zone.name if zone else f"Zone {body.zone_id}"
 
     # Gửi WebSocket event (async)
-    asyncio.create_task(on_intrusion_detected(alert, db))
+    asyncio.create_task(on_intrusion_detected_fast(alert, db))
 
     # Gửi FCM notification (async)
     asyncio.create_task(FCMService.send_intrusion_alert(alert, zone_name, db))

@@ -231,13 +231,19 @@ class ApiService {
         if (isActive != null) 'is_active': isActive,
       });
 
-      // raw bây giờ chắc chắn là List (Mảng đối tượng)
-      final List<dynamic> raw = _handleResponse(response) as List<dynamic>;
+      final raw = _handleResponse(response);
+      List<dynamic> rawList = [];
+      
+      if (raw is List) {
+        rawList = raw;
+      } else if (raw is Map && raw.containsKey('zones') && raw['zones'] is List) {
+        rawList = raw['zones'];
+      }
 
-      return raw.map((e) => ZoneModel.fromJson(e as Map<String, dynamic>)).toList();
+      return rawList.map((e) => ZoneModel.fromJson(e as Map<String, dynamic>)).toList();
     } catch (e) {
       debugPrint("✗ [ApiService] Lỗi tải Zones: $e");
-      return []; // Nếu có lỗi, trả về mảng rỗng để không bị sập UI
+      return [];
     }
   }
 
@@ -316,5 +322,31 @@ class ApiService {
   // Media
   Future<void> deleteMedia(String alertId) async {
     await _dio.delete('/media/alerts/$alertId');
+  }
+
+  // Thêm vào cuối class ApiService trong file zone_moniter_app/lib/services/api_service.dart
+
+  // Lấy trạng thái giám sát hệ thống (ON/OFF)
+  Future<bool> getMonitoringStatus() async {
+    try {
+      final response = await _dio.get('/monitoring/status');
+      final data = _handleResponse(response);
+      return data['monitoring_active'] ?? true;
+    } catch (e) {
+      debugPrint("✗ [ApiService] Lỗi lấy trạng thái monitoring: $e");
+      return true; // Mặc định trả về true nếu lỗi kết nối
+    }
+  }
+
+  // Bật/Tắt chế độ giám sát hệ thống
+  Future<bool> toggleMonitoringStatus() async {
+    try {
+      final response = await _dio.post('/monitoring/toggle');
+      final data = _handleResponse(response);
+      return data['monitoring_active'] ?? true;
+    } catch (e) {
+      debugPrint("✗ [ApiService] Lỗi thay đổi trạng thái monitoring: $e");
+      rethrow;
+    }
   }
 }

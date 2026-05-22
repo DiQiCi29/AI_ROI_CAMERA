@@ -28,6 +28,50 @@ class FCMService:
             print(f"[FCM] Firebase initialization failed: {str(e)}")
 
     @classmethod
+    def send_to_all(cls, title: str, body: str, data: dict = None):
+        """
+        Gửi FCM notification tới tất cả token đã đăng ký.
+        Không cần DB session, dùng token từ DB query riêng.
+        """
+        if not cls._initialized:
+            print("[FCM] Service not initialized, skipping notification")
+            return
+
+        from app.core.database import SessionLocal
+        db = SessionLocal()
+        try:
+            tokens_query = db.query(FCMToken).filter(FCMToken.is_active == True).all()
+            token_list = [token.token for token in tokens_query]
+            if not token_list:
+                print("[FCM] No active FCM tokens found")
+                return
+
+            message = messaging.MulticastMessage(
+                notification=messaging.Notification(
+                    title=title,
+                    body=body
+                ),
+                data=data or {},
+                android=messaging.AndroidConfig(
+                    priority="high",
+                    notification=messaging.AndroidNotification(
+                        channel_id="intrusion_alert_channel",
+                        sound="alert_sound",
+                        color="#FF0000",
+                        icon="ic_launcher_foreground",
+                    )
+                ),
+                tokens=token_list
+            )
+
+            response = messaging.send_multicast(message)
+            print(f"[FCM] Sent to {response.success_count} devices, {response.failure_count} failed")
+        except Exception as e:
+            print(f"[FCM] Error in send_to_all: {str(e)}")
+        finally:
+            db.close()
+
+    @classmethod
     async def send_intrusion_alert(cls, alert: Alert, zone_name: str, db: Session):
         if not cls._initialized:
             print("[FCM] Service not initialized, skipping notification")

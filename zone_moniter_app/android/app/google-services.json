@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "606451031789",
+    "project_id": "ai-roi-camera",
+    "storage_bucket": "ai-roi-camera.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:606451031789:android:e936bfd649df34e3c9f6e4",
+        "android_client_info": {
+          "package_name": "com.example.zone_monitor_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDXb4vmOwFwNhPC6-5VyARFIomYIH837Wk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

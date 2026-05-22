@@ -20,17 +20,23 @@ class AppProvider extends ChangeNotifier {
   List<ZoneModel> _zones = [];
 
   Map<String, dynamic>? _activeAlert;
+  List<dynamic> _detectedAllPeople = []; // Tất cả người detect (cả trong & ngoài ROI)
+
+  bool _isMonitoring = true;
+
 
   // FIX: Cooldown sau khi người dùng bấm dismiss
   DateTime? _alertSuppressedUntil;
   static const _alertCooldownSeconds = 60;
 
-  // FIX: Chỉ hiện overlay khi alert = true VÀ không trong cooldown
-  bool get hasActiveAlert =>
+  // Bbox: Vẽ khung khi AI detect — KHÔNG phụ thuộc monitoring
+  bool get hasActiveBbox =>
       _activeAlert != null &&
-          _activeAlert!['alert'] == true &&
-          (_alertSuppressedUntil == null ||
-              DateTime.now().isAfter(_alertSuppressedUntil!));
+          _activeAlert!['alert'] == true;
+
+  // Alert popup: Chỉ hiện khi monitoring ON
+  bool get hasActiveAlert =>
+      hasActiveBbox && _isMonitoring == true;
 
   Map<String, dynamic>? get activeAlert => _activeAlert;
 
@@ -42,6 +48,8 @@ class AppProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get currentCameraId => _currentCameraId;
   List<ZoneModel> get zones => _zones;
+  List<dynamic> get detectedAllPeople => _detectedAllPeople;
+  bool get isMonitoring => _isMonitoring;
 
   final WebSocketService _ws = WebSocketService();
 
@@ -99,22 +107,56 @@ class AppProvider extends ChangeNotifier {
     _ws.connect();
 
     try {
-      final fcmToken = await NotificationService.getFcmToken();
-      if (fcmToken != null) {
+      // Đợi Firebase init xong rồi mới lấy token
+      // Retry 3 lần vì Firebase messaging có thể chưa ready ngay
+      String? fcmToken;
+      for (int i = 0; i < 3; i++) {
+        fcmToken = await NotificationService.getFcmToken();
+        if (fcmToken != null && fcmToken.isNotEmpty) break;
+        await Future.delayed(const Duration(milliseconds: 1000));
+      }
+      if (fcmToken != null && fcmToken.isNotEmpty) {
         await ApiService.instance.registerFcmToken(fcmToken, 'android_device_id');
+        debugPrint("✅ FCM token registered: ${fcmToken.substring(0, 20)}...");
+      } else {
+        debugPrint("⚠️ FCM token is null after 3 retries - no notification when app closed");
       }
     } catch (e) {
-      debugPrint('Chưa cấu hình Firebase hoặc lỗi FCM: $e');
+      debugPrint('⚠️ FCM registration error: $e');
     }
 
     try {
       await refreshCameraStatus();
+
+      // BỔ SUNG: Đồng bộ trạng thái Giám sát từ backend về app
+      _isMonitoring = await ApiService.instance.getMonitoringStatus();
+
       await Future.wait([
         loadZones(),
         refreshUnreadCount(),
       ]);
     } catch (e) {
       debugPrint('Lỗi tải dữ liệu ban đầu: $e');
+    }
+    notifyListeners();
+  }
+
+  // Hàm gọi API bật tắt chế độ giám sát từ nút nhấn trên giao diện
+  Future<void> toggleMonitoringMode() async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      _isMonitoring = await ApiService.instance.toggleMonitoringStatus();
+      if (!_isMonitoring) {
+        // Nếu tắt giám sát, xóa popup cảnh báo hiện tại trên màn hình ngay lập tức
+        _activeAlert = null;
+        NotificationService.stopAlert();
+      }
+    } catch (e) {
+      debugPrint("Lỗi toggle monitoring: $e");
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
@@ -129,6 +171,9 @@ class AppProvider extends ChangeNotifier {
       final String currentCamId = (_currentCameraId ?? '1').toString();
 
       if (incomingCamId == currentCamId) {
+        // Luôn lưu tất cả người detect được (cho bbox xanh/đỏ)
+        _detectedAllPeople = (data['all_people'] as List?) ?? [];
+
         if (inCooldown) {
           // Vẫn cập nhật để vẽ bbox nhưng không kích hoạt overlay
           _activeAlert = {...data, 'alert': false};
@@ -141,7 +186,6 @@ class AppProvider extends ChangeNotifier {
 
     // Event intrusion_detected: cập nhật unread count + âm thanh
     _ws.onIntrusionDetected = (data) {
-      _unreadCount++;
       // FIX: Chỉ phát âm thanh nếu không trong cooldown
       final bool inCooldown = _alertSuppressedUntil != null &&
           DateTime.now().isBefore(_alertSuppressedUntil!);
@@ -167,6 +211,7 @@ class AppProvider extends ChangeNotifier {
     _token = null;
     _zones = [];
     _activeAlert = null;
+    _detectedAllPeople = [];
     _alertSuppressedUntil = null;
     _unreadCount = 0;
     _cameraOnline = false;
@@ -258,12 +303,10 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
-  // FIX: Dismiss với cooldown 60 giây
-  void dismissActiveAlert() {
-    _alertSuppressedUntil =
-        DateTime.now().add(const Duration(seconds: _alertCooldownSeconds));
+  Future<void> dismissActiveAlert() async {
     _activeAlert = null;
-    NotificationService.stopAlert();
+    NotificationService.stopAlert(); // Tắt còi báo/âm thanh trên điện thoại
+    _alertSuppressedUntil = DateTime.now().add(const Duration(seconds: _alertCooldownSeconds));
     notifyListeners();
   }
 

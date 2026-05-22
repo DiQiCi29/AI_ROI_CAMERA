@@ -45,15 +45,12 @@ class AIWorker:
 
             output = self.detector.process_frame(frame)
 
-            # --- TRẠM 1: BACKEND ĐÃ NHẬN DIỆN ĐƯỢC CHƯA? ---
-            if output["alert"]:
-                print(f"🚩 [Trạm 1 - Backend] Yolo phát hiện {len(output['intruders'])} người! Đang bắn WebSocket...")
-
             # Đóng gói dữ liệu gửi qua WebSocket
             event_data = {
                 "camera_id": str(self.camera_id),
                 "alert": output["alert"],
-                "intruders": output["intruders"] 
+                "intruders": output["intruders"],
+                "all_people": output.get("all_people", [])
             }
             
             try:
@@ -63,7 +60,7 @@ class AIWorker:
                 except RuntimeError:
                     asyncio.run(broadcast_event("live_intrusion_boxes", event_data))
             except Exception as ws_err:
-                print(f"[AI Worker] WebSocket broadcast error: {ws_err}")
+                pass  # Silent để không spam log
 
             time.sleep(0.06)
 

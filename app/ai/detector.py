@@ -33,6 +33,7 @@ class IntrusionDetector:
         self.last_alert_time = None
         self.alert_cooldown = 2
         self.latest_frame = None
+        self._last_log_count = -1  # Throttle log: chỉ in khi số người thay đổi
 
         print(f"[Detector] Running on : {self.device} | Nhạy: {self.confidence}")
 
@@ -105,6 +106,7 @@ class IntrusionDetector:
         results = self.model(frame, classes=[0], conf=self.confidence, device=self.device, verbose=False)
 
         intruders = []
+        all_people = []
         total_people_found = 0
 
         for result in results:
@@ -113,27 +115,56 @@ class IntrusionDetector:
                 bbox = box.xyxy[0].tolist()  
                 conf = float(box.conf[0])
 
-                # Gọi hàm kiểm tra IoA diện tích mới
-                if self._check_intrusion_with_ioa(bbox):
-                    bbox_norm = [
-                        round(bbox[0] / width, 4), round(bbox[1] / height, 4),
-                        round(bbox[2] / width, 4), round(bbox[3] / height, 4)
-                    ]
-                    intruders.append({"bbox": bbox_norm, "confidence": round(conf, 2)})
+                bbox_norm = [
+                    round(bbox[0] / width, 4), round(bbox[1] / height, 4),
+                    round(bbox[2] / width, 4), round(bbox[3] / height, 4)
+                ]
+                
+                person = {"bbox": bbox_norm, "confidence": round(conf, 2)}
+                all_people.append(person)  # Tất cả người detect được
 
-        if total_people_found > 0:
+                # Chỉ thêm vào intruders nếu TRONG ROI
+                if self._check_intrusion_with_ioa(bbox):
+                    intruders.append(person)
+
+        # Chỉ log khi số người thay đổi (tránh spam)
+        if total_people_found != self._last_log_count:
+            self._last_log_count = total_people_found
             roi_status = f"CÓ ({len(self.multi_roi_polygons)} vùng)" if self.multi_roi_polygons else "TRỐNG"
-            print(f"👀 [Trạm 0] YOLO thấy {total_people_found} người | ROI: {roi_status} | Xâm nhập: {len(intruders)} người")
+            print(f"👀 YOLO thấy {total_people_found} người | ROI: {roi_status} | Xâm nhập: {len(intruders)} | An toàn: {len(all_people) - len(intruders)}")
 
         output = {
             "alert": len(intruders) > 0,
             "intruders": intruders,
+            "all_people": all_people,
             "timestamp": datetime.now().isoformat()
         }
         
-        if output["alert"] and self.mqtt_client:
-            self._publish_alert_mqtt(output)
-        
+        # Kiểm tra trạng thái chế độ giám sát từ bộ nhớ RAM hệ thống
+# Trong app/ai/detector.py (Hàm process_frame)
+        from app.main import app as fastapi_app
+
+        # Đọc trực tiếp từ bộ nhớ RAM (được Router đồng bộ từ DB liên tục)
+        is_monitoring = getattr(fastapi_app.state, "monitoring_active", True)
+
+        if output["alert"]:
+            if is_monitoring:
+                # Nếu ON: Gửi lệnh MQTT điều khiển còi đèn, bắn WebSocket, gửi FCM hỏa tốc...
+                if self.mqtt_client:
+                    self._publish_alert_mqtt(output)
+                
+                # Luồng đẩy FCM khẩn cấp không lưu DB (Xem tiếp ở mục dưới)
+                import asyncio
+                from app.services.detection_service import on_intrusion_detected_fast
+                try:
+                    loop = asyncio.get_running_loop()
+                    asyncio.run_coroutine_threadsafe(on_intrusion_detected_fast(self.camera_id, intruders), loop)
+                except RuntimeError:
+                    asyncio.run(on_intrusion_detected_fast(self.camera_id, intruders))
+            else:
+                # Chế độ giám sát TẮT: AI vẫn hoạt động nhưng im lặng hoàn toàn
+                pass  # Silent: monitoring OFF
+                
         return output
     
     def _publish_alert_mqtt(self, output: dict):

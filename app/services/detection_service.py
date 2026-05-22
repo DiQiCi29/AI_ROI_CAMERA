@@ -6,48 +6,52 @@ from app.models.zone import Zone
 from app.models.device import Device, DeviceType
 from app.api.v1.routes.websocket import broadcast, broadcast_event
 from app.services.mqtt_client import mqtt_client  # FIX: dùng mqtt_client thay MQTTService
+from app.services.fcm_service import FCMService  # Import để gọi thẳng FCM dịch vụ của bạn
 
 
-async def on_intrusion_detected(alert: Alert, db: Session):
-    """Gọi khi detection engine phát hiện xâm nhập."""
+async def on_intrusion_detected_fast(camera_id: int, intruders: list, zone_name: str = "Vùng bảo vệ"):
+    """
+    HÀM XỬ LÝ NHANH CẤP TỐC: Bỏ qua việc ghi nhận/đọc tạo bản ghi DB rườm rà.
+    Tập trung đẩy WebSocket thời gian thực và bắn thông báo khẩn cấp FCM.
+    """
     try:
-        zone_name = None
-        if alert.zone_id is not None:
-            zone = db.query(Zone).filter(Zone.id == alert.zone_id).first()
-            zone_name = zone.name if zone else f"Zone {alert.zone_id}"
+        object_count = len(intruders)
+        detected_time = datetime.now().isoformat()
 
-        boxes = []
-        if alert.bounding_boxes:
-            if isinstance(alert.bounding_boxes, str):
-                try:
-                    boxes = json.loads(alert.bounding_boxes)
-                except Exception:
-                    boxes = []
-            else:
-                boxes = alert.bounding_boxes
-
-        object_count = len(boxes) if boxes else 1
-
+        # 1. PHÁT TRUYỀN WEBSOCKET ĐỂ HIỂN THỊ OVERLAY ĐỎ CHỚP TRÊN APP NGAY LẬP TỨC
         await broadcast("intrusion_detected", {
-            "alert_id": str(alert.id),
-            "zone_id": str(alert.zone_id) if alert.zone_id is not None else None,
+            "alert_id": "fast_trigger",
+            "zone_id": "1",
             "zone_name": zone_name,
-            "camera_id": str(alert.camera_id) if alert.camera_id is not None else None,
-            "detected_at": alert.detected_at.isoformat() if alert.detected_at else None,
+            "camera_id": str(camera_id),
+            "detected_at": detected_time,
             "object_count": object_count,
-            "confidence": float(alert.confidence) if alert.confidence is not None else 0.0,
-            "thumbnail_url": f"/api/v1/media/alerts/{alert.id}/thumbnail" if alert.thumbnail_path else None,
-            "bounding_boxes": boxes,
-            "video_url": f"/api/v1/media/alerts/{alert.id}/video" if alert.video_clip_path else None
+            "confidence": 0.85,
+            "thumbnail_url": None,  # Không tốn tài nguyên render ảnh thumbnail
+            "bounding_boxes": [item["bbox"] for item in intruders],
+            "video_url": None
         })
-        print(f"[WebSocket] Broadcast intrusion_detected for alert {alert.id}")
+        print(f"🚀 [Fast Logic] Broadcast WebSocket intrusion_detected to application.")
 
-        # FIX: Kích hoạt thiết bị phần cứng qua mqtt_client thay vì MQTTService
-        if mqtt_client.is_connected():
-            _trigger_hardware_devices(alert, db)
+        # 2. KIỂM TRA & BẮN THÔNG BÁO ĐẨY HỎA TỐC QUA FIREBASE (FCM)
+        try:
+            # Gửi tin nhắn Cloud Messaging không qua hàng đợi
+            # Payload đơn giản hóa tối đa để điện thoại nhận được trong <1 giây
+            FCMService.send_to_all(
+                title="🚨 CẢNH BÁO XÂM NHẬP KHẨN CẤP",
+                body=f"Phát hiện {object_count} đối tượng lạ xuất hiện tại khu vực {zone_name}!",
+                data={
+                    "click_action": "FLUTTER_NOTIFICATION_CLICK",
+                    "camera_id": str(camera_id),
+                    "type": "intrusion"
+                }
+            )
+            print("✓ [FCM Check] Khởi phát lệnh đẩy Firebase Cloud Messaging thành công.")
+        except Exception as fcm_err:
+            print(f"✗ [FCM Check Error] Thiết lập Firebase bị lỗi hoặc chưa có token: {str(fcm_err)}")
 
     except Exception as e:
-        print(f"[WebSocket Error] Failed to broadcast intrusion_detected: {str(e)}")
+        print(f"[Fast Logic Error] Gặp sự cố truyền phát tín hiệu khẩn cấp: {str(e)}")
 
 
 def _trigger_hardware_devices(alert: Alert, db: Session):

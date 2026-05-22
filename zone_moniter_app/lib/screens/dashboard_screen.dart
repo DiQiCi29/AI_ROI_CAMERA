@@ -28,7 +28,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _loadData() async {
     final provider = context.read<AppProvider>();
     try {
-      // Ensure we have camera status and zones loaded
       await Future.wait([
         ApiService.instance.getStats().then((data) => _stats = data),
         ApiService.instance.getAlerts(limit: 5).then((data) {
@@ -55,42 +54,102 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         title: const Text('Dashboard', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
-          IconButton(icon: const Icon(Icons.refresh_rounded), onPressed: () {
-            setState(() => _loading = true);
-            _loadData();
-            provider.refreshCameraStatus();
-          }),
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () {
+              setState(() => _loading = true);
+              _loadData();
+              provider.refreshCameraStatus();
+            },
+          ),
         ],
       ),
-      body: _loading ? const Center(child: CircularProgressIndicator()) : RefreshIndicator(
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
         onRefresh: _loadData,
         child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(), padding: const EdgeInsets.all(16),
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // 1. CARD HIỂN THỊ CAMERA STATUS
               _CameraStatusCard(isOnline: provider.cameraOnline),
+              const SizedBox(height: 12),
+
+              // 2. CARD ĐIỀU KHIỂN TRẠNG THÁI GIÁM SÁT (MONITORING SWITCH)
+              Card(
+                color: provider.isMonitoring ? Colors.blueGrey.withOpacity(0.2) : Colors.amber.withOpacity(0.1),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: provider.isMonitoring ? Colors.blue.withOpacity(0.3) : Colors.amber.withOpacity(0.4))
+                ),
+                child: SwitchListTile(
+                  title: Text(
+                    provider.isMonitoring ? 'Chế độ giám sát: ĐANG BẬT' : 'Chế độ giám sát: TẠM DỪNG',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: provider.isMonitoring ? Colors.greenAccent : Colors.amberAccent
+                    ),
+                  ),
+                  subtitle: Text(
+                    provider.isMonitoring
+                        ? 'Hệ thống đang bảo vệ vùng cấm, sẵn sàng kích hoạt còi báo động.'
+                        : 'AI vẫn vẽ khung nhưng còi đèn, thông báo đẩy FCM đã bị vô hiệu hóa.',
+                    style: const TextStyle(fontSize: 12, color: Colors.white60),
+                  ),
+                  value: provider.isMonitoring,
+                  activeColor: Colors.greenAccent,
+                  onChanged: provider.isLoading ? null : (bool value) {
+                    provider.toggleMonitoringMode();
+                  },
+                  secondary: Icon(
+                    provider.isMonitoring ? Icons.gpp_good_rounded : Icons.gpp_maybe_rounded,
+                    color: provider.isMonitoring ? Colors.greenAccent : Colors.amberAccent,
+                    size: 30,
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
+
+              // 3. THỐNG KÊ SỐ LIỆU (Trả lại phần bị lỗi cú pháp trước đó)
               if (_stats != null) ...[
                 const Text('Thống kê hôm nay', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white70)),
                 const SizedBox(height: 10),
-                GridView.count(
-                  shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 1.4,
+                  GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 1.4,
                   children: [
                     _StatCard(icon: Icons.warning_amber_rounded, label: 'Tổng xâm nhập', value: '${_stats!['total_intrusions'] ?? 0}', color: Colors.orange),
                     _StatCard(icon: Icons.today_rounded, label: 'Hôm nay', value: '${_stats!['intrusions_today'] ?? 0}', color: Colors.redAccent),
                     _StatCard(icon: Icons.date_range_rounded, label: 'Tuần này', value: '${_stats!['intrusions_this_week'] ?? 0}', color: Colors.blue),
-                    _StatCard(icon: Icons.notifications_active_rounded, label: 'Chưa đọc', value: '${provider.unreadCount}', color: Colors.purple),
+
+                    // ĐÃ THAY THẾ: Thẻ chưa đọc cũ bị lỗi hiển thị số lượng được thay bằng thẻ trạng thái hoạt động AI
+                    _StatCard(
+                        icon: provider.isMonitoring ? Icons.shield_rounded : Icons.shield_outlined,
+                        label: 'Trạng thái AI',
+                        value: provider.isMonitoring ? 'ON' : 'OFF',
+                        color: provider.isMonitoring ? Colors.greenAccent : Colors.amber
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
               ],
+
+              // 4. DANH SÁCH VÙNG CẤM ĐANG HOẠT ĐỘNG
               const Text('Vùng cấm đang hoạt động', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white70)),
               const SizedBox(height: 10),
               ...provider.zones.where((z) => z.isActive).map((z) => _ZoneChip(name: z.name)),
               if (provider.zones.where((z) => z.isActive).isEmpty)
                 const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text('Chưa có vùng cấm nào được kích hoạt', style: TextStyle(color: Colors.white38))),
               const SizedBox(height: 16),
+
+              // 5. CẢNH BÁO GẦN ĐÂY
               const Text('Cảnh báo gần đây', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white70)),
               const SizedBox(height: 10),
               if (_recentAlerts.isEmpty)
@@ -100,7 +159,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: ListTile(
                     leading: Container(
                       width: 44, height: 44, decoration: BoxDecoration(color: Colors.red.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-                      child: a.thumbnailUrl != null ? ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.network('${AppConfig.baseUrl}${a.thumbnailUrl}', fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.person_rounded, color: Colors.red))) : const Icon(Icons.person_rounded, color: Colors.red),
+                      child: a.thumbnailUrl != null
+                          ? ClipRRect(borderRadius: BorderRadius.circular(10), child: Image.network('${AppConfig.baseUrl}${a.thumbnailUrl}', fit: BoxFit.cover, errorBuilder: (_, __, ___) => const Icon(Icons.person_rounded, color: Colors.red)))
+                          : const Icon(Icons.person_rounded, color: Colors.red),
                     ),
                     title: Text(a.zoneName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
                     subtitle: Text(DateFormat('HH:mm - dd/MM/yyyy').format(a.detectedAt.toLocal()), style: const TextStyle(color: Colors.white38, fontSize: 12)),

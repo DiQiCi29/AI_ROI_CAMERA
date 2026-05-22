@@ -2,13 +2,23 @@
 
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:torch_light/torch_light.dart';
 
+// FIX: Background handler cần gọi Firebase.initializeApp() + init local notif plugin
 @pragma('vm:entry-point')
 Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+  const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+  const initSettings = InitializationSettings(android: androidInit);
+  await FlutterLocalNotificationsPlugin().initialize(initSettings);
+
   NotificationService._showLocalNotification(
     title: message.notification?.title ?? '⚠️ Cảnh báo xâm nhập!',
     body: message.notification?.body ?? 'Phát hiện đối tượng!',

@@ -13,6 +13,7 @@ from app.services.fcm_service import FCMService
 import math
 import json
 import asyncio
+import httpx
 
 router = APIRouter(prefix="/alerts", tags=["Alerts"])
 
@@ -131,3 +132,55 @@ def mark_read(alert_id: int, db: Session = Depends(get_db),
     a.is_acknowledged = 1
     db.commit()
     return {"success": True, "data": {"alert_id": str(a.id), "is_read": True}}
+
+
+@router.post("/{alert_id}/dismiss")
+async def dismiss_alert(alert_id: int, db: Session = Depends(get_db),
+                       current_user: User = Depends(get_current_user)):
+    """
+    Android user nhấn 'Bỏ qua' → Gọi /alarm/stop để tắt cảnh báo trên ESP32
+    """
+    a = db.query(Alert).filter(Alert.id == alert_id).first()
+    if not a:
+        raise HTTPException(status_code=404, detail={"code": "ALERT_NOT_FOUND", "message": "Not found"})
+    
+    # 1. Gọi /alarm/stop API để tắt ESP32
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "http://localhost:8000/api/v1/alarm/stop",
+                timeout=5
+            )
+            if response.status_code == 200:
+                print(f"✓ [Dismiss Alert] Alarm stopped via /alarm/stop")
+            else:
+                print(f"✗ [Dismiss Alert] Failed to stop alarm: {response.status_code}")
+    except Exception as e:
+        print(f"✗ [Dismiss Alert Error] {str(e)}")
+    
+    # 2. Đánh dấu alert đã xem
+    a.is_acknowledged = 1
+    db.commit()
+    
+    # 3. Broadcast WebSocket để xóa overlay trên app
+    from app.api.v1.routes.websocket import broadcast_event
+    try:
+        asyncio.create_task(
+            broadcast_event("intrusion_ended", {
+                "alert_id": str(a.id),
+                "message": "Cảnh báo đã bị user bỏ qua",
+                "dismissed_at": datetime.now().isoformat()
+            })
+        )
+    except Exception as e:
+        print(f"✗ [WebSocket Broadcast Error] {str(e)}")
+    
+    return {
+        "success": True,
+        "message": "Cảnh báo đã bị bỏ qua (tắt ESP32 + đánh dấu đã xem + broadcast)",
+        "data": {
+            "alert_id": str(a.id),
+            "dismissed_by": current_user.username,
+            "dismissed_at": datetime.now().isoformat()
+        }
+    }

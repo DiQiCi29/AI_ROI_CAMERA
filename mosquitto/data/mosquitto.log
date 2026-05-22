@@ -318,3 +318,164 @@
 1779356920: Saving in-memory database to /mosquitto/data//mosquitto.db.
 1779356969: Client esp32_alarm_system [172.19.0.1:58902] disconnected: exceeded timeout.
 1779357053: Client auto-807B667E-9063-3C30-5094-BCBE55BD6065 [172.19.0.1:48380] disconnected: connection closed by client.
+1779444593: mosquitto version 2.1.2 starting
+1779444593: Config loaded from /mosquitto/config/mosquitto.conf.
+1779444593: Bridge support available.
+1779444593: Persistence support available.
+1779444593: TLS support available.
+1779444593: TLS-PSK support available.
+1779444593: Websockets support available.
+1779444593: Opening ipv4 listen socket on port 1883.
+1779444593: mosquitto version 2.1.2 running
+1779444594: New connection from 172.19.0.1:41134 on port 1883.
+1779444594: New client connected from 172.19.0.1:41134 as esp32_alarm_system (p4, c1, k15).
+1779444695: New connection from 172.19.0.1:45572 on port 1883.
+1779444695: New client connected from 172.19.0.1:45572 as auto-3360571F-45E2-DE6E-6AD6-41DF5FC41F03 (p4, c1, k60, u'mqtt_user').
+1779444996: Client esp32_alarm_system [172.19.0.1:41134] disconnected: exceeded timeout.
+1779445002: Client auto-3360571F-45E2-DE6E-6AD6-41DF5FC41F03 [172.19.0.1:45572] disconnected.
+1779445002: New connection from 172.19.0.1:35498 on port 1883.
+1779445003: New client connected from 172.19.0.1:35498 as esp32_alarm_system (p4, c1, k15).
+1779445154: Client esp32_alarm_system [172.19.0.1:35498] disconnected: exceeded timeout.
+1779445230: New connection from 172.19.0.1:59596 on port 1883.
+1779445230: New connection from 172.19.0.1:59598 on port 1883.
+1779445230: New connection from 172.19.0.1:59594 on port 1883.
+1779445230: New connection from 172.19.0.1:59624 on port 1883.
+1779445230: New connection from 172.19.0.1:59626 on port 1883.
+1779445230: New connection from 172.19.0.1:59634 on port 1883.
+1779445230: New client connected from 172.19.0.1:59594 as esp32_alarm_system (p4, c1, k15).
+1779445230: Client esp32_alarm_system [172.19.0.1:59594] disconnected: session taken over.
+1779445230: New client connected from 172.19.0.1:59598 as esp32_alarm_system (p4, c1, k15).
+1779445230: Client esp32_alarm_system [172.19.0.1:59598] disconnected: session taken over.
+1779445230: New client connected from 172.19.0.1:59624 as esp32_alarm_system (p4, c1, k15).
+1779445230: Client esp32_alarm_system [172.19.0.1:59624] disconnected: session taken over.
+1779445230: New client connected from 172.19.0.1:59596 as esp32_alarm_system (p4, c1, k15).
+1779445230: Client esp32_alarm_system [172.19.0.1:59596] disconnected: session taken over.
+1779445230: New client connected from 172.19.0.1:59634 as esp32_alarm_system (p4, c1, k15).
+1779445230: Client esp32_alarm_system [172.19.0.1:59634] disconnected: session taken over.
+1779445230: New client connected from 172.19.0.1:59626 as esp32_alarm_system (p4, c1, k15).
+1779445230: New connection from 172.19.0.1:59644 on port 1883.
+1779445231: Client esp32_alarm_system [172.19.0.1:59626] disconnected: connection closed by client.
+1779445231: New client connected from 172.19.0.1:59644 as esp32_alarm_system (p4, c1, k15).
+1779445253: Client esp32_alarm_system [172.19.0.1:59644] disconnected: exceeded timeout.
+1779445429: New connection from 172.19.0.1:52152 on port 1883.
+1779445432: New client connected from 172.19.0.1:52152 as auto-2DB8AA90-4F94-2E36-94E3-B03AF0D0C44F (p4, c1, k60, u'mqtt_user').
+1779445467: Client auto-2DB8AA90-4F94-2E36-94E3-B03AF0D0C44F [172.19.0.1:52152] disconnected.
+1779445638: New connection from 172.19.0.1:46128 on port 1883.
+1779445638: New client connected from 172.19.0.1:46128 as esp32_alarm_system (p4, c1, k15).
+1779445662: Client esp32_alarm_system [172.19.0.1:46128] disconnected: exceeded timeout.
+1779446376: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1779447062: New connection from 172.19.0.1:48834 on port 1883.
+1779447062: New client connected from 172.19.0.1:48834 as esp32_alarm_system (p4, c1, k15).
+1779447449: Client esp32_alarm_system [172.19.0.1:48834] disconnected: exceeded timeout.
+1779447465: New connection from 172.19.0.1:55972 on port 1883.
+1779447465: New client connected from 172.19.0.1:55972 as esp32_alarm_system (p4, c1, k15).
+1779447548: Client esp32_alarm_system [172.19.0.1:55972] disconnected: exceeded timeout.
+1779447566: New connection from 172.19.0.1:49632 on port 1883.
+1779447574: New client connected from 172.19.0.1:49632 as esp32_alarm_system (p4, c1, k15).
+1779447596: Client esp32_alarm_system [172.19.0.1:49632] disconnected: exceeded timeout.
+1779447652: New connection from 172.19.0.1:37954 on port 1883.
+1779447652: New client connected from 172.19.0.1:37954 as esp32_alarm_system (p4, c1, k15).
+1779447732: New connection from 172.19.0.1:45030 on port 1883.
+1779447732: Client esp32_alarm_system [172.19.0.1:37954] disconnected: session taken over.
+1779447732: New client connected from 172.19.0.1:45030 as esp32_alarm_system (p4, c1, k15).
+1779476783: mosquitto version 2.1.2 starting
+1779476783: Config loaded from /mosquitto/config/mosquitto.conf.
+1779476783: Bridge support available.
+1779476783: Persistence support available.
+1779476783: TLS support available.
+1779476783: TLS-PSK support available.
+1779476783: Websockets support available.
+1779476783: Opening ipv4 listen socket on port 1883.
+1779476783: mosquitto version 2.1.2 running
+1779476785: New connection from 172.19.0.1:50094 on port 1883.
+1779476785: New client connected from 172.19.0.1:50094 as esp32_alarm_system (p4, c1, k15).
+1779476901: Client esp32_alarm_system [172.19.0.1:50094] disconnected: connection closed by client.
+1779476983: mosquitto version 2.1.2 terminating
+1779476983: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1779477007: mosquitto version 2.1.2 starting
+1779477007: Config loaded from /mosquitto/config/mosquitto.conf.
+1779477007: Bridge support available.
+1779477007: Persistence support available.
+1779477007: TLS support available.
+1779477007: TLS-PSK support available.
+1779477007: Websockets support available.
+1779477007: Opening ipv4 listen socket on port 1883.
+1779477007: mosquitto version 2.1.2 running
+1779477370: mosquitto version 2.1.2 starting
+1779477370: Config loaded from /mosquitto/config/mosquitto.conf.
+1779477370: Bridge support available.
+1779477370: Persistence support available.
+1779477370: TLS support available.
+1779477370: TLS-PSK support available.
+1779477370: Websockets support available.
+1779477370: Opening ipv4 listen socket on port 1883.
+1779477370: mosquitto version 2.1.2 running
+1779477591: New connection from 172.19.0.1:35112 on port 1883.
+1779477591: New client connected from 172.19.0.1:35112 as esp32_alarm_system (p4, c1, k15).
+1779477720: Client esp32_alarm_system [172.19.0.1:35112] disconnected: exceeded timeout.
+1779477740: New connection from 172.19.0.1:59464 on port 1883.
+1779477740: New client connected from 172.19.0.1:59464 as esp32_alarm_system (p4, c1, k15).
+1779477742: Client esp32_alarm_system [172.19.0.1:59464] disconnected: connection closed by client.
+1779477742: New connection from 172.19.0.1:59468 on port 1883.
+1779477742: New client connected from 172.19.0.1:59468 as esp32_alarm_system (p4, c1, k15).
+1779477786: Client esp32_alarm_system [172.19.0.1:59468] disconnected: connection closed by client.
+1779477789: New connection from 172.19.0.1:45492 on port 1883.
+1779477790: New client connected from 172.19.0.1:45492 as esp32_alarm_system (p4, c1, k15).
+1779477908: Client esp32_alarm_system [172.19.0.1:45492] disconnected: exceeded timeout.
+1779477913: New connection from 172.19.0.1:56914 on port 1883.
+1779477930: New client connected from 172.19.0.1:56914 as esp32_alarm_system (p4, c1, k15).
+1779477933: Client esp32_alarm_system [172.19.0.1:56914] disconnected: connection closed by client.
+1779477934: New connection from 172.19.0.1:38954 on port 1883.
+1779477935: New client connected from 172.19.0.1:38954 as esp32_alarm_system (p4, c1, k15).
+1779478073: Client esp32_alarm_system [172.19.0.1:38954] disconnected: connection closed by client.
+1779478288: mosquitto version 2.1.2 starting
+1779478288: Config loaded from /mosquitto/config/mosquitto.conf.
+1779478288: Bridge support available.
+1779478288: Persistence support available.
+1779478288: TLS support available.
+1779478288: TLS-PSK support available.
+1779478288: Websockets support available.
+1779478288: Opening ipv4 listen socket on port 1883.
+1779478288: mosquitto version 2.1.2 running
+1779479151: mosquitto version 2.1.2 terminating
+1779479151: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1779479304: mosquitto version 2.1.2 starting
+1779479304: Config loaded from /mosquitto/config/mosquitto.conf.
+1779479304: Bridge support available.
+1779479304: Persistence support available.
+1779479304: TLS support available.
+1779479304: TLS-PSK support available.
+1779479304: Websockets support available.
+1779479304: Opening ipv4 listen socket on port 1883.
+1779479304: mosquitto version 2.1.2 running
+1779479347: mosquitto version 2.1.2 terminating
+1779479347: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1779479354: mosquitto version 2.1.2 starting
+1779479354: Config loaded from /mosquitto/config/mosquitto.conf.
+1779479354: Bridge support available.
+1779479354: Persistence support available.
+1779479354: TLS support available.
+1779479354: TLS-PSK support available.
+1779479354: Websockets support available.
+1779479354: Opening ipv4 listen socket on port 1883.
+1779479354: mosquitto version 2.1.2 running
+1779479721: mosquitto version 2.1.2 terminating
+1779479721: Saving in-memory database to /mosquitto/data//mosquitto.db.
+1779480153: mosquitto version 2.1.2 starting
+1779480153: Config loaded from /mosquitto/config/mosquitto.conf.
+1779480153: Bridge support available.
+1779480153: Persistence support available.
+1779480153: TLS support available.
+1779480153: TLS-PSK support available.
+1779480153: Websockets support available.
+1779480153: Opening ipv4 listen socket on port 1883.
+1779480153: mosquitto version 2.1.2 running
+1779480799: mosquitto version 2.1.2 starting
+1779480799: Config loaded from /mosquitto/config/mosquitto.conf.
+1779480799: Bridge support available.
+1779480799: Persistence support available.
+1779480799: TLS support available.
+1779480799: TLS-PSK support available.
+1779480799: Websockets support available.
+1779480799: Opening ipv4 listen socket on port 1883.
+1779480799: mosquitto version 2.1.2 running

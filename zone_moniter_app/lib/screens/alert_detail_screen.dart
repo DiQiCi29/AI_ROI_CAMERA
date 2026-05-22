@@ -27,6 +27,32 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
     } catch (_) { if (mounted) setState(() => _isLoading = false); }
   }
 
+  Future<void> _dismissAlert() async {
+    try {
+      await ApiService.instance.dismissAlert(widget.alertId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✓ Cảnh báo đã bị bỏ qua (ESP32 + Siren/Light tắt)'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+        Navigator.pop(context, true); // Quay lại list, refresh
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✗ Lỗi: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _initVideo() async {
     if (_alert?.videoUrl == null) return;
     final url = _alert!.videoUrl!.startsWith('http') ? _alert!.videoUrl! : '${AppConfig.baseUrl}${_alert!.videoUrl}';
@@ -62,6 +88,21 @@ class _AlertDetailScreenState extends State<AlertDetailScreen> {
                   _buildInfoRow(Icons.access_time, 'Thời gian', DateFormat('HH:mm:ss - dd/MM/yyyy').format(_alert!.detectedAt.toLocal())),
                   const Divider(color: Colors.white10, height: 32),
                   _buildInfoRow(Icons.person, 'Đối tượng', '${_alert!.objectCount} người'),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: _dismissAlert,
+                      child: const Text(
+                        '🚫 BỎ QUA / TẮT CẢNH BÁO',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             )

@@ -149,11 +149,11 @@ class IntrusionDetector:
 
         if output["alert"]:
             if is_monitoring:
-                # Nếu ON: Gửi lệnh MQTT điều khiển còi đèn, bắn WebSocket, gửi FCM hỏa tốc...
-                if self.mqtt_client:
-                    self._publish_alert_mqtt(output)
-                
-                # Luồng đẩy FCM khẩn cấp không lưu DB (Xem tiếp ở mục dưới)
+                # Luồng đẩy FCM khẩn cấp không lưu DB
+                # on_intrusion_detected_fast() sẽ:
+                # 1. Gọi /alarm/trigger API để bật ESP32
+                # 2. Broadcast WebSocket
+                # 3. Gửi FCM
                 import asyncio
                 from app.services.detection_service import on_intrusion_detected_fast
                 try:

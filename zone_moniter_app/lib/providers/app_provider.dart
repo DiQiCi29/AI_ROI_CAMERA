@@ -21,8 +21,17 @@ class AppProvider extends ChangeNotifier {
 
   Map<String, dynamic>? _activeAlert;
 
-  // Kiểm tra điều kiện alert == true thì mới báo động (chống spam vẽ khung rỗng)
-  bool get hasActiveAlert => _activeAlert != null && _activeAlert!['alert'] == true;
+  // FIX: Cooldown sau khi người dùng bấm dismiss
+  DateTime? _alertSuppressedUntil;
+  static const _alertCooldownSeconds = 60;
+
+  // FIX: Chỉ hiện overlay khi alert = true VÀ không trong cooldown
+  bool get hasActiveAlert =>
+      _activeAlert != null &&
+          _activeAlert!['alert'] == true &&
+          (_alertSuppressedUntil == null ||
+              DateTime.now().isAfter(_alertSuppressedUntil!));
+
   Map<String, dynamic>? get activeAlert => _activeAlert;
 
   bool get isLoggedIn => _isLoggedIn;
@@ -110,22 +119,36 @@ class AppProvider extends ChangeNotifier {
   }
 
   void _setupWebSocket() {
-    // Lắng nghe luồng tọa độ live_intrusion_boxes từ AI truyền xuống
+    // FIX: Tách biệt live bbox (hiển thị khung) vs intrusion_detected (pop-up cảnh báo)
     _ws.onLiveBboxes = (data) {
+      // Trong cooldown → chỉ cập nhật bbox để vẽ khung, KHÔNG trigger overlay
+      final bool inCooldown = _alertSuppressedUntil != null &&
+          DateTime.now().isBefore(_alertSuppressedUntil!);
+
       final String incomingCamId = data['camera_id'].toString();
       final String currentCamId = (_currentCameraId ?? '1').toString();
 
-      // Chỉ cập nhật nếu gói tin thuộc về camera hiện tại
       if (incomingCamId == currentCamId) {
-        _activeAlert = data;
-        notifyListeners(); // Kích hoạt vẽ UI
+        if (inCooldown) {
+          // Vẫn cập nhật để vẽ bbox nhưng không kích hoạt overlay
+          _activeAlert = {...data, 'alert': false};
+        } else {
+          _activeAlert = data;
+        }
+        notifyListeners();
       }
     };
 
+    // Event intrusion_detected: cập nhật unread count + âm thanh
     _ws.onIntrusionDetected = (data) {
       _unreadCount++;
+      // FIX: Chỉ phát âm thanh nếu không trong cooldown
+      final bool inCooldown = _alertSuppressedUntil != null &&
+          DateTime.now().isBefore(_alertSuppressedUntil!);
+      if (!inCooldown) {
+        NotificationService.triggerAlert(zoneName: data['zone_name']);
+      }
       notifyListeners();
-      NotificationService.triggerAlert(zoneName: data['zone_name']);
     };
 
     _ws.onIntrusionEnded = (data) {
@@ -144,6 +167,7 @@ class AppProvider extends ChangeNotifier {
     _token = null;
     _zones = [];
     _activeAlert = null;
+    _alertSuppressedUntil = null;
     _unreadCount = 0;
     _cameraOnline = false;
     notifyListeners();
@@ -234,7 +258,10 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  // FIX: Dismiss với cooldown 60 giây
   void dismissActiveAlert() {
+    _alertSuppressedUntil =
+        DateTime.now().add(const Duration(seconds: _alertCooldownSeconds));
     _activeAlert = null;
     NotificationService.stopAlert();
     notifyListeners();

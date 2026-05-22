@@ -7,6 +7,7 @@ import '../providers/app_provider.dart';
 import '../widgets/zone_painter.dart';
 import 'zone_draw_screen.dart';
 import '../widgets/live_bbox_overlay.dart';
+import '../config/app_config.dart';
 
 class CameraStreamScreen extends StatefulWidget {
   const CameraStreamScreen({super.key});
@@ -42,7 +43,7 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
           onWebResourceError: (err) {
             debugPrint("WebView Error: ${err.description}");
             setState(() {
-              _error = "Không thể kết nối luồng WebRTC Proxy";
+              _error = "Không thể kết nối luồng WebRTC";
               _isLoading = false;
             });
           },
@@ -53,7 +54,11 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
   void _loadWebRTC() {
     final provider = context.read<AppProvider>();
     final camId = provider.currentCameraId ?? "1";
-    final webrtcUrl = "http://127.0.0.1:8889/camera_${camId.padLeft(2, '0')}/whep";
+    // FIX: Dùng AppConfig.webrtcBaseUrl thay vì hardcode 127.0.0.1
+    final webrtcBase = AppConfig.webrtcBaseUrl;
+    final webrtcUrl = "$webrtcBase/camera_${camId.padLeft(2, '0')}/whep";
+
+    debugPrint("[WebRTC] Connecting to: $webrtcUrl");
 
     _webController.loadHtmlString('''
       <!DOCTYPE html>
@@ -62,30 +67,36 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
         <style>
           body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: black; overflow: hidden; }
-          whep-video { width: 100%; height: 100%; object-fit: contain; }
+          video { width: 100%; height: 100%; object-fit: contain; }
         </style>
-        <script src="https://cdn.jsdelivr.net/npm/@livekit/whep-video@1.0.1/dist/index.js"></script>
       </head>
       <body>
         <video id="video" autoplay muted playsinline></video>
         <script>
-          const videoElement = document.getElementById('video');
-          navigator.mediaDevices.getUserMedia({ video: true }).then(() => {
-             const peerConnection = new RTCPeerConnection();
-             peerConnection.ontrack = (event) => {
-               if (videoElement.srcObject !== event.streams[0]) {
-                 videoElement.srcObject = event.streams[0];
-               }
-             };
-             peerConnection.addTransceiver('video', { direction: 'recvonly' });
-             fetch('$webrtcUrl', {
-               method: 'POST',
-               body: peerConnection.localDescription.sdp,
-               headers: { 'Content-Type': 'application/sdp' }
-             }).then(res => res.text()).then(sdp => {
-               peerConnection.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: sdp }));
-             });
-          });
+          async function startWebRTC() {
+            try {
+              const pc = new RTCPeerConnection();
+              pc.ontrack = (event) => {
+                const video = document.getElementById('video');
+                if (video.srcObject !== event.streams[0]) {
+                  video.srcObject = event.streams[0];
+                }
+              };
+              pc.addTransceiver('video', { direction: 'recvonly' });
+              await pc.setLocalDescription(await pc.createOffer());
+              const res = await fetch('$webrtcUrl', {
+                method: 'POST',
+                body: pc.localDescription.sdp,
+                headers: { 'Content-Type': 'application/sdp' }
+              });
+              if (!res.ok) throw new Error('WHEP response: ' + res.status);
+              const sdp = await res.text();
+              await pc.setRemoteDescription({ type: 'answer', sdp: sdp });
+            } catch(e) {
+              console.error('WebRTC error:', e);
+            }
+          }
+          startWebRTC();
         </script>
       </body>
       </html>
@@ -109,22 +120,18 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
               icon: const Icon(Icons.add_location_alt_rounded),
               onPressed: () async {
                 final success = await provider.fetchCameraSnapshot();
-
                 if (!mounted) return;
-
                 if (!success || provider.cameraSnapshotBytes == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Không thể lấy ảnh để vẽ zone!'))
                   );
                   return;
                 }
-
                 await Navigator.push(context, MaterialPageRoute(builder: (_) => ZoneDrawScreen(
                   currentFrame: provider.cameraSnapshotBytes!,
                   existingZones: provider.zones,
                   cameraId: provider.currentCameraId?.toString() ?? "1",
                 )));
-
                 provider.loadZones();
               }
           ),
@@ -135,19 +142,25 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
         children: [
           Expanded(
             child: Center(
-              // Đưa toàn bộ khu vực stream vào AspectRatio cố định tỷ lệ 16:9
               child: AspectRatio(
                 aspectRatio: 16 / 9,
                 child: Stack(
                   children: [
                     Center(
                       child: _error != null
-                          ? Text(_error!, style: const TextStyle(color: Colors.white54))
+                          ? Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.videocam_off, color: Colors.white38, size: 48),
+                          const SizedBox(height: 8),
+                          Text(_error!, style: const TextStyle(color: Colors.white54)),
+                          const SizedBox(height: 8),
+                          Text(AppConfig.webrtcBaseUrl, style: const TextStyle(color: Colors.white24, fontSize: 11)),
+                        ],
+                      )
                           : WebViewWidget(controller: _webController),
                     ),
-
                     if (_isLoading) const Center(child: CircularProgressIndicator()),
-
                     if (_showZones && zones.isNotEmpty)
                       Positioned.fill(
                         child: IgnorePointer(
@@ -161,8 +174,6 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
                           }),
                         ),
                       ),
-
-                    // Lớp trên cùng: Vẽ BBox thời gian thực
                     if (provider.hasActiveAlert)
                       Positioned.fill(
                         child: IgnorePointer(
@@ -177,7 +188,6 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
                           }),
                         ),
                       ),
-
                     Positioned(top: 12, left: 12, child: _buildStatusBadge()),
                   ],
                 ),
@@ -209,7 +219,9 @@ class _CameraStreamScreenState extends State<CameraStreamScreen> {
   Widget _buildZoneFooter(List zones) {
     return Container(
       height: 90, color: const Color(0xFF0D0D1A),
-      child: zones.isEmpty ? const Center(child: Text('Chưa có vùng cấm', style: TextStyle(color: Colors.white38))) : ListView.builder(
+      child: zones.isEmpty
+          ? const Center(child: Text('Chưa có vùng cấm', style: TextStyle(color: Colors.white38)))
+          : ListView.builder(
         scrollDirection: Axis.horizontal, padding: const EdgeInsets.all(12), itemCount: zones.length,
         itemBuilder: (_, i) => Container(
           margin: const EdgeInsets.only(right: 8), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

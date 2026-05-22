@@ -1,5 +1,5 @@
 
-
+import asyncio
 import logging
 from sqlalchemy.orm import Session
 from datetime import datetime
@@ -21,6 +21,7 @@ class MqttListener:
     
     async def init_listeners(self):
         try:
+            self._loop = asyncio.get_event_loop()
             mqtt_client.set_on_message_callback(self.on_mqtt_message)
             self._loop = asyncio.get_event_loop()
             
@@ -87,7 +88,7 @@ class MqttListener:
             logger.info(f"✓ Alert saved to DB (ID: {alert.id})")
 
             # ✅ Fix: dùng asyncio.run_coroutine_threadsafe thay vì create_task
-            import asyncio
+            # import asyncio
             event_data = {
                 "alert_id": str(alert.id),
                 "camera_id": camera_id,

@@ -8,9 +8,9 @@ import 'screens/login_screen.dart';
 import 'screens/main_screen.dart';
 import 'services/notification_service.dart';
 
-final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
+GlobalKey<ScaffoldMessengerState>();
 
-// Tách cấu hình Theme ra để dễ quản lý và chuẩn Material 3
 class AppTheme {
   static const Color primaryColor = Color(0xFF0D47A1);
   static const Color bgColor = Color(0xFF0A0A0F);
@@ -45,9 +45,14 @@ class AppTheme {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Tạm thời comment 2 dòng này lại nếu bạn CHƯA copy file google-services.json vào thư mục android/app/
-  // await Firebase.initializeApp();
-  // await NotificationService.initialize();
+  // FIX: Bỏ comment — khởi tạo Firebase + Notification
+  try {
+    await Firebase.initializeApp();
+    await NotificationService.initialize();
+  } catch (e) {
+    // Vẫn chạy app nếu Firebase lỗi (thiếu google-services.json)
+    debugPrint('⚠️ Firebase init failed: $e');
+  }
 
   runApp(const ZoneMonitorApp());
 }
@@ -63,7 +68,7 @@ class ZoneMonitorApp extends StatelessWidget {
         title: 'Zone Monitor',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        scaffoldMessengerKey: rootScaffoldMessengerKey, // 2. Gắn key vào MaterialApp
+        scaffoldMessengerKey: rootScaffoldMessengerKey,
         home: const _AuthGate(),
       ),
     );
@@ -86,15 +91,12 @@ class _AuthGateState extends State<_AuthGate> {
     _checkAuthStatus();
   }
 
-  // Khắc phục lỗi Thread Safety: Hiển thị màn hình chờ trong lúc load token
   Future<void> _checkAuthStatus() async {
     try {
       await context.read<AppProvider>().loadSavedToken();
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }

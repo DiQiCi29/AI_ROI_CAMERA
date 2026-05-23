@@ -24,7 +24,6 @@ class _MainScreenState extends State<MainScreen> {
     DashboardScreen(),
     CameraStreamScreen(),
     ZoneListScreen(),
-    AlertListScreen(),
     SettingsScreen(),
   ];
 
@@ -45,36 +44,23 @@ class _MainScreenState extends State<MainScreen> {
                 indicatorColor: const Color(0xFF1565C0).withOpacity(0.3),
                 onDestinationSelected: (i) =>
                     setState(() => _currentIndex = i),
-                destinations: [
-                  const NavigationDestination(
+                destinations: const [
+                  NavigationDestination(
                     icon: Icon(Icons.dashboard_outlined),
                     selectedIcon: Icon(Icons.dashboard),
                     label: 'Dashboard',
                   ),
-                  const NavigationDestination(
+                  NavigationDestination(
                     icon: Icon(Icons.videocam_outlined),
                     selectedIcon: Icon(Icons.videocam),
                     label: 'Camera',
                   ),
-                  const NavigationDestination(
+                  NavigationDestination(
                     icon: Icon(Icons.crop_free_outlined),
                     selectedIcon: Icon(Icons.crop_free),
                     label: 'Vùng cấm',
                   ),
                   NavigationDestination(
-                    icon: Badge(
-                      isLabelVisible: provider.unreadCount > 0,
-                      label: Text('${provider.unreadCount}'),
-                      child: const Icon(Icons.notifications_outlined),
-                    ),
-                    selectedIcon: Badge(
-                      isLabelVisible: provider.unreadCount > 0,
-                      label: Text('${provider.unreadCount}'),
-                      child: const Icon(Icons.notifications),
-                    ),
-                    label: 'Cảnh báo',
-                  ),
-                  const NavigationDestination(
                     icon: Icon(Icons.settings_outlined),
                     selectedIcon: Icon(Icons.settings),
                     label: 'Cài đặt',
@@ -83,14 +69,14 @@ class _MainScreenState extends State<MainScreen> {
               ),
             ),
 
-            // Intrusion alert overlay (hiện lên khi có xâm nhập)
+            // Intrusion alert overlay
             if (provider.hasActiveAlert)
               IntrusionOverlay(
                 alertData: provider.activeAlert!,
                 onDismiss: () => provider.dismissActiveAlert(),
                 onViewDetail: () {
                   provider.dismissActiveAlert();
-                  setState(() => _currentIndex = 3); // Chuyển sang tab Alerts
+                  setState(() => _currentIndex = 1); // Chuyển sang tab Camera
                 },
               ),
           ],

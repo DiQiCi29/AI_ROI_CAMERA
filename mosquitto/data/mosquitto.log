@@ -336,3 +336,19 @@
 1779481570: New client connected from 172.18.0.1:50374 as auto-B2E57EF3-2D06-A03B-2996-F8F808F919F0 (p4, c1, k60, u'mqtt_user').
 1779481619: Client esp32_alarm_system [172.18.0.1:46478] disconnected: connection closed by client.
 1779481638: Client auto-B2E57EF3-2D06-A03B-2996-F8F808F919F0 [172.18.0.1:50374] disconnected.
+1779508434: mosquitto version 2.1.2 starting
+1779508434: Config loaded from /mosquitto/config/mosquitto.conf.
+1779508434: Bridge support available.
+1779508434: Persistence support available.
+1779508434: TLS support available.
+1779508434: TLS-PSK support available.
+1779508434: Websockets support available.
+1779508434: Opening ipv4 listen socket on port 1883.
+1779508434: mosquitto version 2.1.2 running
+1779508949: New connection from 172.18.0.1:43250 on port 1883.
+1779508949: New client connected from 172.18.0.1:43250 as auto-EC2B756C-A4C8-E214-36B6-0C34BD6F08E3 (p4, c1, k60, u'mqtt_user').
+1779509144: Client auto-EC2B756C-A4C8-E214-36B6-0C34BD6F08E3 [172.18.0.1:43250] disconnected.
+1779509157: New connection from 172.18.0.1:59486 on port 1883.
+1779509157: New client connected from 172.18.0.1:59486 as auto-38A8522C-6EB7-AC63-CE0D-49FFC461C741 (p4, c1, k60, u'mqtt_user').
+1779509299: mosquitto version 2.1.2 terminating
+1779509299: Saving in-memory database to /mosquitto/data//mosquitto.db.

@@ -16,5 +16,5 @@ api: yes
 # Các camera khác sẽ được add qua API (setup_camera.py)
 paths:
   camera_01:
-    source: rtsp://35639463:123@192.168.0.3:554/onvif1
+    source: rtsp://35639463:123@192.168.0.2:554/onvif1
     sourceOnDemand: no

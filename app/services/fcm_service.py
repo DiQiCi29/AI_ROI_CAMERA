@@ -64,10 +64,11 @@ class FCMService:
                 tokens=token_list
             )
 
-            response = messaging.send_multicast(message)
+            response = messaging.send_each_for_multicast(message)
             print(f"[FCM] Sent to {response.success_count} devices, {response.failure_count} failed")
         except Exception as e:
             print(f"[FCM] Error in send_to_all: {str(e)}")
+            raise 
         finally:
             db.close()
 
@@ -112,7 +113,7 @@ class FCMService:
         )
 
         try:
-            response = messaging.send_multicast(message)
+            response = messaging.send_each_for_multicast(message)
             print(f"[FCM] Sent to {response.success_count} devices, {response.failure_count} failed")
             return response
         except Exception as e:

@@ -46,6 +46,10 @@ class NotificationService {
       },
     );
 
+    // Yêu cầu quyền thông báo trên Android 13+
+    await _localNotif.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
+
     const channel = AndroidNotificationChannel(
       _channelId,
       _channelName,

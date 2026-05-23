@@ -163,7 +163,6 @@ class AppProvider extends ChangeNotifier {
   void _setupWebSocket() {
     // FIX: Tách biệt live bbox (hiển thị khung) vs intrusion_detected (pop-up cảnh báo)
     _ws.onLiveBboxes = (data) {
-      // Trong cooldown → chỉ cập nhật bbox để vẽ khung, KHÔNG trigger overlay
       final bool inCooldown = _alertSuppressedUntil != null &&
           DateTime.now().isBefore(_alertSuppressedUntil!);
 
@@ -171,26 +170,31 @@ class AppProvider extends ChangeNotifier {
       final String currentCamId = (_currentCameraId ?? '1').toString();
 
       if (incomingCamId == currentCamId) {
-        // Luôn lưu tất cả người detect được (cho bbox xanh/đỏ)
         _detectedAllPeople = (data['all_people'] as List?) ?? [];
 
-        if (inCooldown) {
-          // Vẫn cập nhật để vẽ bbox nhưng không kích hoạt overlay
-          _activeAlert = {...data, 'alert': false};
-        } else {
-          _activeAlert = data;
-        }
+        // CHỈ đặt 'alert': true nếu ĐANG BẬT giám sát VÀ KHÔNG trong cooldown
+        final bool shouldTriggerAlert = _isMonitoring && !inCooldown;
+        
+        _activeAlert = {
+          ...data, 
+          'alert': (data['alert'] == true) && shouldTriggerAlert
+        };
+        
         notifyListeners();
       }
     };
 
     // Event intrusion_detected: cập nhật unread count + âm thanh
     _ws.onIntrusionDetected = (data) {
-      // FIX: Chỉ phát âm thanh nếu không trong cooldown
+      // NẾU TẮT GIÁM SÁT -> Bỏ qua hoàn toàn sự kiện alert trên app
+      if (!_isMonitoring) return;
+
       final bool inCooldown = _alertSuppressedUntil != null &&
           DateTime.now().isBefore(_alertSuppressedUntil!);
+      
       if (!inCooldown) {
         NotificationService.triggerAlert(zoneName: data['zone_name']);
+        refreshUnreadCount();
       }
       notifyListeners();
     };
